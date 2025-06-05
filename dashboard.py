@@ -36,18 +36,13 @@ if df.empty:
     st.stop()
 
 # === Processing ===
-df["Spend"] = df["spend"].astype(float)
-if "revenue" in df.columns:
-    df["Revenue"] = df["revenue"].astype(float)
-else:
-    df["Revenue"] = 0.0
+df["Spend"] = df.get("spend", 0).astype(float)
+df["Revenue"] = df.get("revenue", 0).astype(float)
 df["ROAS"] = (df["Revenue"] / df["Spend"]).replace([float("inf"), -float("inf")], 0).fillna(0)
 df["Profit"] = df["Revenue"] - df["Spend"]
 
-# === Display Columns ===
-columns_to_display = ["ad_name", "status", "daily_budget", "Spend", "Revenue", "ROAS", "Profit"]
-df_display = df[columns_to_display].copy()
-df_display.rename(columns={
+# === Display Columns (only if exist) ===
+base_columns = {
     "ad_name": "Ad Name",
     "status": "Status",
     "daily_budget": "Budget ($)",
@@ -55,7 +50,11 @@ df_display.rename(columns={
     "Revenue": "Revenue ($)",
     "ROAS": "ROAS",
     "Profit": "Profit ($)"
-}, inplace=True)
+}
+
+available_columns = [col for col in base_columns if col in df.columns]
+df_display = df[available_columns].copy()
+df_display.rename(columns={col: base_columns[col] for col in available_columns}, inplace=True)
 
 # === Filter by Account ID ===
 accounts = df["account_id"].unique().tolist()
@@ -75,9 +74,13 @@ st.dataframe(df_display.style.format({
 }))
 
 # === Summary Row ===
-total_spend = df_display["Spend ($)"].sum()
-total_revenue = df_display["Revenue ($)"].sum()
-total_profit = df_display["Profit ($)"].sum()
+spend_col = "Spend ($)"
+revenue_col = "Revenue ($)"
+profit_col = "Profit ($)"
+
+total_spend = df_display.get(spend_col, pd.Series(dtype=float)).sum()
+total_revenue = df_display.get(revenue_col, pd.Series(dtype=float)).sum()
+total_profit = df_display.get(profit_col, pd.Series(dtype=float)).sum()
 total_roas = (total_revenue / total_spend) if total_spend != 0 else 0
 
 st.markdown("---")
