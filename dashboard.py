@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 st.set_page_config(page_title="Predicto Dashboard", layout="wide")
 
-# === Header ===
+# === General Header ===
 st.title("📊 Predicto Ads Dashboard")
 
 # === Date Selection ===
@@ -19,51 +19,50 @@ def_date = format_date(yesterday)
 date = st.date_input("Select date", yesterday)
 date_str = format_date(date)
 
-# === Fetching data from Flask API ===
+# === Fetch Data from Flask API ===
 API_URL = f"https://e8a7-35-230-163-243.ngrok-free.app/ads?date={date_str}"
 try:
     response = requests.get(API_URL)
+    response.raise_for_status()
     data = response.json()
 except Exception as e:
     st.error(f"Error fetching data: {e}")
     st.stop()
 
-# === Convert to DataFrame ===
+# === Process Data ===
 df = pd.DataFrame(data)
 
 if df.empty:
-    st.warning("No data found for selected date.")
+    st.warning("No data found for the selected date.")
     st.stop()
 
-# === Processing ===
-df["Spend"] = df.get("spend", 0).astype(float)
-df["Revenue"] = df.get("revenue", 0).astype(float)
-df["ROAS"] = (df["Revenue"] / df["Spend"]).replace([float("inf"), -float("inf")], 0).fillna(0)
-df["Profit"] = df["Revenue"] - df["Spend"]
+# === Type Conversion and Calculations ===
+df["spend"] = pd.to_numeric(df.get("spend", 0), errors="coerce").fillna(0)
+df["revenue"] = pd.to_numeric(df.get("revenue", 0), errors="coerce").fillna(0)
+df["ROAS"] = (df["revenue"] / df["spend"]).replace([float("inf"), -float("inf")], 0).fillna(0)
+df["Profit"] = df["revenue"] - df["spend"]
 
-# === Display Columns (only if exist) ===
-base_columns = {
+# === Display Columns ===
+columns_to_display = ["ad_name", "status", "daily_budget", "spend", "revenue", "ROAS", "Profit"]
+df_display = df[columns_to_display].copy()
+df_display.rename(columns={
     "ad_name": "Ad Name",
     "status": "Status",
     "daily_budget": "Budget ($)",
-    "Spend": "Spend ($)",
-    "Revenue": "Revenue ($)",
+    "spend": "Spend ($)",
+    "revenue": "Revenue ($)",
     "ROAS": "ROAS",
     "Profit": "Profit ($)"
-}
+}, inplace=True)
 
-available_columns = [col for col in base_columns if col in df.columns]
-df_display = df[available_columns].copy()
-df_display.rename(columns={col: base_columns[col] for col in available_columns}, inplace=True)
-
-# === Filter by Account ID ===
-accounts = df["account_id"].unique().tolist()
+# === Filter by Account ===
+accounts = df["account_id"].dropna().unique().tolist()
 selected_account = st.selectbox("Filter by account", ["All"] + accounts)
 
 if selected_account != "All":
     df_display = df_display[df["account_id"] == selected_account]
 
-# === Display Main Table ===
+# === Main Table ===
 st.subheader("📋 Ads Overview")
 st.dataframe(df_display.style.format({
     "Budget ($)": "${:,.2f}",
@@ -73,14 +72,10 @@ st.dataframe(df_display.style.format({
     "Profit ($)": "${:,.2f}"
 }))
 
-# === Summary Row ===
-spend_col = "Spend ($)"
-revenue_col = "Revenue ($)"
-profit_col = "Profit ($)"
-
-total_spend = df_display.get(spend_col, pd.Series(dtype=float)).sum()
-total_revenue = df_display.get(revenue_col, pd.Series(dtype=float)).sum()
-total_profit = df_display.get(profit_col, pd.Series(dtype=float)).sum()
+# === Summary ===
+total_spend = df_display["Spend ($)"].sum()
+total_revenue = df_display["Revenue ($)"].sum()
+total_profit = df_display["Profit ($)"].sum()
 total_roas = (total_revenue / total_spend) if total_spend != 0 else 0
 
 st.markdown("---")
@@ -91,7 +86,7 @@ col2.metric("Total Revenue", f"${total_revenue:,.2f}")
 col3.metric("Profit", f"${total_profit:,.2f}", delta=f"{(total_profit/total_spend)*100:.1f}%" if total_spend else None)
 col4.metric("True ROAS", f"{total_roas:.0%}")
 
-# === Action Placeholder ===
+# === Future Controls ===
 st.markdown("---")
 st.markdown("### 🛠️ Actions (coming soon)")
-st.warning("Pause/change budgets will be added in the next step.")
+st.warning("Turning off ads or budget updates will be available in the next version.")
