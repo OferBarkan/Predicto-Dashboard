@@ -1,14 +1,15 @@
 import streamlit as st
 import pandas as pd
-import requests
+import json
 from datetime import datetime, timedelta
+import gspread
+from google.oauth2.service_account import Credentials
 
+# === הגדרת העמוד ===
 st.set_page_config(page_title="Predicto Dashboard", layout="wide")
-
-# === General Header ===
 st.title("📊 Predicto Ads Dashboard")
 
-# === Date Selection ===
+# === תאריך ברירת מחדל ===
 today = datetime.today()
 yesterday = today - timedelta(days=1)
 
@@ -19,74 +20,52 @@ def_date = format_date(yesterday)
 date = st.date_input("Select date", yesterday)
 date_str = format_date(date)
 
-# === Fetch Data from Flask API ===
-API_URL = f"https://e8a7-35-230-163-243.ngrok-free.app/ads?date={date_str}"
+# === התחברות ל-Google Sheets ===
+creds_dict = json.loads(st.secrets["GOOGLE_SHEETS_CREDENTIALS"])
+creds = Credentials.from_service_account_info(creds_dict)
+client = gspread.authorize(creds)
+sheet = client.open("Predicto data source")
+
+# === שליפת טאב ROAS ===
 try:
-    response = requests.get(API_URL)
-    response.raise_for_status()
-    data = response.json()
+    ws = sheet.worksheet("ROAS")
+    df = pd.DataFrame(ws.get_all_records())
 except Exception as e:
-    st.error(f"Error fetching data: {e}")
+    st.error(f"בעיה בגישה ל-Google Sheets: {e}")
     st.stop()
 
-# === Process Data ===
-df = pd.DataFrame(data)
-
+# === סינון לפי תאריך ===
+df = df[df["Date"] == date_str]
 if df.empty:
-    st.warning("No data found for the selected date.")
+    st.warning("לא נמצאו נתונים לתאריך שבחרת.")
     st.stop()
 
-# === Type Conversion and Calculations ===
-df["spend"] = pd.to_numeric(df.get("spend", 0), errors="coerce").fillna(0)
-df["revenue"] = pd.to_numeric(df.get("revenue", 0), errors="coerce").fillna(0)
-df["ROAS"] = (df["revenue"] / df["spend"]).replace([float("inf"), -float("inf")], 0).fillna(0)
-df["Profit"] = df["revenue"] - df["spend"]
+# === חישובים ===
+df["Spend (USD)"] = pd.to_numeric(df.get("Spend (USD)", 0), errors="coerce").fillna(0)
+df["Revenue (USD)"] = pd.to_numeric(df.get("Revenue (USD)", 0), errors="coerce").fillna(0)
+df["ROAS"] = (df["Revenue (USD)"] / df["Spend (USD)"]).replace([float("inf"), -float("inf")], 0).fillna(0)
+df["Profit (USD)"] = df["Revenue (USD)"] - df["Spend (USD)"]
 
-# === Display Columns ===
-columns_to_display = ["ad_name", "status", "daily_budget", "spend", "revenue", "ROAS", "Profit"]
-df_display = df[columns_to_display].copy()
-df_display.rename(columns={
-    "ad_name": "Ad Name",
-    "status": "Status",
-    "daily_budget": "Budget ($)",
-    "spend": "Spend ($)",
-    "revenue": "Revenue ($)",
-    "ROAS": "ROAS",
-    "Profit": "Profit ($)"
-}, inplace=True)
-
-# === Filter by Account ===
-accounts = df["account_id"].dropna().unique().tolist()
-selected_account = st.selectbox("Filter by account", ["All"] + accounts)
-
-if selected_account != "All":
-    df_display = df_display[df["account_id"] == selected_account]
-
-# === Main Table ===
+# === הצגה בטבלה ===
+display_cols = ["Ad Name", "Spend (USD)", "Revenue (USD)", "Profit (USD)", "ROAS"]
 st.subheader("📋 Ads Overview")
-st.dataframe(df_display.style.format({
-    "Budget ($)": "${:,.2f}",
-    "Spend ($)": "${:,.2f}",
-    "Revenue ($)": "${:,.2f}",
-    "ROAS": "{:.0%}",
-    "Profit ($)": "${:,.2f}"
+st.dataframe(df[display_cols].style.format({
+    "Spend (USD)": "${:,.2f}",
+    "Revenue (USD)": "${:,.2f}",
+    "Profit (USD)": "${:,.2f}",
+    "ROAS": "{:.0%}"
 }))
 
-# === Summary ===
-total_spend = df_display["Spend ($)"].sum()
-total_revenue = df_display["Revenue ($)"].sum()
-total_profit = df_display["Profit ($)"].sum()
-total_roas = (total_revenue / total_spend) if total_spend != 0 else 0
-
+# === סיכום כולל ===
 st.markdown("---")
 st.markdown("### 🔢 Summary")
+total_spend = df["Spend (USD)"].sum()
+total_revenue = df["Revenue (USD)"].sum()
+total_profit = df["Profit (USD)"].sum()
+total_roas = (total_revenue / total_spend) if total_spend != 0 else 0
+
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Total Spend", f"${total_spend:,.2f}")
 col2.metric("Total Revenue", f"${total_revenue:,.2f}")
 col3.metric("Profit", f"${total_profit:,.2f}", delta=f"{(total_profit/total_spend)*100:.1f}%" if total_spend else None)
 col4.metric("True ROAS", f"{total_roas:.0%}")
-
-# === Future Controls ===
-st.markdown("---")
-st.markdown("### 🛠️ Actions (coming soon)")
-st.warning("Turning off ads or budget updates will be available in the next version.")
