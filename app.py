@@ -1,22 +1,23 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime, timedelta
 import gspread
+from datetime import datetime, timedelta
 from google.oauth2.service_account import Credentials
 
-# === התחברות לגוגל שיט ===
+# === התחברות ל-Google Sheets דרך secrets ===
 scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-creds = Credentials.from_service_account_file("credentials.json", scopes=scopes)
+creds_dict = st.secrets["GOOGLE_SHEETS_CREDENTIALS"]
+creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
 client = gspread.authorize(creds)
 
-# === פתיחת הגיליון והטאב ===
+# === פרטי הגיליון ===
 spreadsheet_id = "1n6-m2FidDQBTksrLRAEcc9J3qwy8sfsSrEpfC_fZSoY"
 sheet = client.open_by_key(spreadsheet_id)
 ws = sheet.worksheet("ROAS")
 data = ws.get_all_records()
 df = pd.DataFrame(data)
 
-# === הגדרות עמוד ===
+# === הגדרות הדשבורד ===
 st.set_page_config(page_title="Predicto Ads Dashboard", layout="wide")
 st.title("📊 Predicto Ads Dashboard")
 
@@ -28,16 +29,16 @@ date_str = date.strftime("%Y-%m-%d")
 # === סינון לפי תאריך ===
 df = df[df["Date"] == date_str]
 if df.empty:
-    st.warning("אין נתונים לתאריך זה.")
+    st.warning("אין נתונים לתאריך שנבחר.")
     st.stop()
 
-# === המרות וחישובים ===
+# === חישובים ===
 df["Spend (USD)"] = pd.to_numeric(df["Spend (USD)"], errors="coerce").fillna(0)
 df["Revenue (USD)"] = pd.to_numeric(df["Revenue (USD)"], errors="coerce").fillna(0)
 df["ROAS"] = (df["Revenue (USD)"] / df["Spend (USD)"]).replace([float("inf"), -float("inf")], 0)
 df["Profit (USD)"] = df["Revenue (USD)"] - df["Spend (USD)"]
 
-# === תצוגה ראשית ===
+# === הצגת טבלה ===
 st.subheader("🧾 טבלת מודעות")
 cols = ["Ad Name", "Spend (USD)", "Revenue (USD)", "Profit (USD)", "ROAS"]
 st.dataframe(df[cols].style.format({
@@ -53,7 +54,7 @@ st.markdown("### 🧮 סיכום יומי")
 total_spend = df["Spend (USD)"].sum()
 total_revenue = df["Revenue (USD)"].sum()
 total_profit = df["Profit (USD)"].sum()
-total_roas = total_revenue / total_spend if total_spend != 0 else 0
+total_roas = total_revenue / total_spend if total_spend else 0
 
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("סך הוצאה", f"${total_spend:,.2f}")
