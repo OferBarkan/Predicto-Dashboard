@@ -4,10 +4,13 @@ from datetime import datetime, timedelta
 import gspread
 from google.oauth2.service_account import Credentials
 
-# התחברות ל-Google Sheets דרך secrets (פורמט TOML)
+# התחברות ל-Google Sheets דרך st.secrets
 creds = Credentials.from_service_account_info(st.secrets["GOOGLE_SHEETS_CREDENTIALS"])
 client = gspread.authorize(creds)
-sheet = client.open("Predicto data source")
+
+# פתיחה לפי Spreadsheet ID (לא לפי שם!)
+spreadsheet_id = "1n6-m2FidDQBTksrLRAEccJj3qwy8sfsfEpFC_ZSoV"
+sheet = client.open_by_key(spreadsheet_id)
 
 # === הגדרת העמוד ===
 st.set_page_config(page_title="Predicto Dashboard", layout="wide")
