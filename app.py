@@ -3,10 +3,11 @@ import pandas as pd
 import gspread
 from datetime import datetime, timedelta
 from google.oauth2.service_account import Credentials
+import json
 
 # === התחברות ל-Google Sheets דרך secrets ===
 scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-creds_dict = st.secrets["GOOGLE_SHEETS_CREDENTIALS"]
+creds_dict = json.loads(st.secrets["GOOGLE_SHEETS_CREDENTIALS"])  # ✔️ תיקון כאן
 creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
 client = gspread.authorize(creds)
 
