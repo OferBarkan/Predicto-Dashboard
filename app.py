@@ -5,6 +5,12 @@ from datetime import datetime, timedelta
 import gspread
 from google.oauth2.service_account import Credentials
 
+# התחברות ל-Google Sheets דרך secrets
+creds = Credentials.from_service_account_info(st.secrets["GOOGLE_SHEETS_CREDENTIALS"])
+client = gspread.authorize(creds)
+sheet = client.open("Predicto data source")
+
+
 # === הגדרת העמוד ===
 st.set_page_config(page_title="Predicto Dashboard", layout="wide")
 st.title("📊 Predicto Ads Dashboard")
