@@ -1,15 +1,13 @@
 import streamlit as st
 import pandas as pd
-import json
 from datetime import datetime, timedelta
 import gspread
 from google.oauth2.service_account import Credentials
 
-# התחברות ל-Google Sheets דרך secrets
+# התחברות ל-Google Sheets דרך secrets (פורמט TOML)
 creds = Credentials.from_service_account_info(st.secrets["GOOGLE_SHEETS_CREDENTIALS"])
 client = gspread.authorize(creds)
 sheet = client.open("Predicto data source")
-
 
 # === הגדרת העמוד ===
 st.set_page_config(page_title="Predicto Dashboard", layout="wide")
@@ -25,12 +23,6 @@ def format_date(dt):
 def_date = format_date(yesterday)
 date = st.date_input("Select date", yesterday)
 date_str = format_date(date)
-
-# === התחברות ל-Google Sheets ===
-creds_dict = json.loads(st.secrets["GOOGLE_SHEETS_CREDENTIALS"])
-creds = Credentials.from_service_account_info(creds_dict)
-client = gspread.authorize(creds)
-sheet = client.open("Predicto data source")
 
 # === שליפת טאב ROAS ===
 try:
