@@ -1,4 +1,5 @@
 streamlit
-facebook-business
 pandas
-requests
+gspread
+gspread_dataframe
+google-auth
