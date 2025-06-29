@@ -3,3 +3,4 @@ pandas
 gspread
 gspread_dataframe
 google-auth
+facebook-business
