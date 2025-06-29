@@ -7,7 +7,7 @@ from google.oauth2.service_account import Credentials
 from facebook_business.api import FacebookAdsApi
 from facebook_business.adobjects.adset import AdSet
 
-# === Streamlit Page Setup ===
+# === Page Setup ===
 st.set_page_config(page_title="Predicto Ads Dashboard", layout="wide")
 st.title("📊 Predicto Ads Dashboard")
 
@@ -29,7 +29,6 @@ sheet = client.open_by_key(spreadsheet_id)
 roas_ws = sheet.worksheet("ROAS")
 control_ws = sheet.worksheet("Manual Control")
 
-# === Load data ===
 roas_df = pd.DataFrame(roas_ws.get_all_records())
 control_df = pd.DataFrame(control_ws.get_all_records())
 
@@ -45,10 +44,10 @@ if df.empty or control.empty:
     st.warning("No data for selected date.")
     st.stop()
 
-# === Merge ROAS + Manual ===
+# === Merge ROAS + Control ===
 df = df.merge(control, on=["Date", "Ad Name"], how="left", suffixes=('', '_ctrl'))
 
-# === Display table with inline controls ===
+# === Display Table with Controls ===
 st.markdown("### 🎛️ Ad Set Control Panel")
 
 for i, row in df.iterrows():
@@ -56,11 +55,23 @@ for i, row in df.iterrows():
     st.markdown(f"#### 📣 {row['Ad Name']}")
 
     col1, col2, col3 = st.columns([2, 2, 1])
-    col1.metric("Spend", f"${row['Spend (USD)']:,.2f}")
-    col1.metric("Revenue", f"${row['Revenue (USD)']:,.2f}")
-    col2.metric("ROAS", f"{row['ROAS']:.0%}")
-    col2.metric("Profit", f"${row['Profit (USD)']:,.2f}")
+    
+    # Safe value formatting
+    spend = float(row["Spend (USD)"]) if pd.notnull(row["Spend (USD)"]) else 0
+    revenue = float(row["Revenue (USD)"]) if pd.notnull(row["Revenue (USD)"]) else 0
+    profit = revenue - spend
+    try:
+        roas_val = revenue / spend if spend != 0 else 0
+        roas_display = f"{roas_val:.0%}"
+    except:
+        roas_display = "N/A"
 
+    col1.metric("Spend", f"${spend:,.2f}")
+    col1.metric("Revenue", f"${revenue:,.2f}")
+    col2.metric("Profit", f"${profit:,.2f}")
+    col2.metric("ROAS", roas_display)
+
+    # === Control Inputs ===
     current_budget = row.get("Current Budget (ILS)", 0)
     current_status = row.get("Current Status", "UNKNOWN")
     adset_id = str(row.get("Ad Set ID")).replace("'", "")
