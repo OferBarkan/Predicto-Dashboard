@@ -7,85 +7,80 @@ from google.oauth2.service_account import Credentials
 from facebook_business.api import FacebookAdsApi
 from facebook_business.adobjects.adset import AdSet
 
-# === Page Setup ===
-st.set_page_config(page_title="Predicto Ads Dashboard", layout="wide")
-st.title("📊 Predicto Ads Dashboard")
-
-# === Google Sheets Auth ===
+# === Auth ===
 scopes = ["https://www.googleapis.com/auth/spreadsheets"]
 creds_dict = json.loads(st.secrets["GOOGLE_SHEETS_CREDENTIALS"])
 creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
 client = gspread.authorize(creds)
 
-# === Facebook API Init ===
-access_token = "EAAOOQ3qqHXwBO6ZAMZCpwltJ5lDnxPurZBvimJaE747ZBZC8dvBPJphaMhVeOrHeTU1hhsRjogSIc7SQDZChKLSfVc2W5vceXNncM1CwLgIFdIPeaIOZBvmMaKHnFnM2XyGmB9BiQvBZC3I8oNL2HtplT2cU0Hs4nHrazprClGTIhHY0X9U9u2EOUjy98nFUcYoZD"
-app_id = "1000845402054012"
-app_secret = "516290b16501656af88b98e57ae27da7"
+# === Facebook Init ===
+access_token = "..."  # שים כאן את הטוקן שלך
+app_id = "..."        # האפליקציה שלך
+app_secret = "..."    # הסוד
 FacebookAdsApi.init(app_id, app_secret, access_token)
 
-# === Load Sheets ===
+# === Load Sheet ===
 spreadsheet_id = "1n6-m2FidDQBTksrLRAEcc9J3qwy8sfsSrEpfC_fZSoY"
 sheet = client.open_by_key(spreadsheet_id)
-roas_ws = sheet.worksheet("ROAS")
-control_ws = sheet.worksheet("Manual Control")
+roas_df = pd.DataFrame(sheet.worksheet("ROAS").get_all_records())
+control_df = pd.DataFrame(sheet.worksheet("Manual Control").get_all_records())
 
-roas_df = pd.DataFrame(roas_ws.get_all_records())
-control_df = pd.DataFrame(control_ws.get_all_records())
-
-# === Filter by date ===
+# === Filter by Date ===
 yesterday = datetime.today() - timedelta(days=1)
-selected_date = st.date_input("Select Date", yesterday)
-date_str = selected_date.strftime("%Y-%m-%d")
+date = st.date_input("Select date", yesterday)
+date_str = date.strftime('%Y-%m-%d')
 
 df = roas_df[roas_df["Date"] == date_str]
 control = control_df[control_df["Date"] == date_str]
+df = df.merge(control, on=["Date", "Ad Name"], how="left", suffixes=('', '_ctrl'))
 
-if df.empty or control.empty:
+if df.empty:
     st.warning("No data for selected date.")
     st.stop()
 
-# === Merge ROAS + Control ===
-df = df.merge(control, on=["Date", "Ad Name"], how="left", suffixes=('', '_ctrl'))
+# === Set Page ===
+st.set_page_config(layout="wide")
+st.title("📊 Predicto Ads Dashboard")
 
-# === Display Table with Controls ===
-st.markdown("### 🎛️ Ad Set Control Panel")
+# === Table Display ===
+st.markdown("### ✏️ Editable Control Table")
 
-for i, row in df.iterrows():
-    st.markdown("----")
-    st.markdown(f"#### 📣 {row['Ad Name']}")
+# Set defaults
+if "updates" not in st.session_state:
+    st.session_state["updates"] = {}
 
-    col1, col2, col3 = st.columns([2, 2, 1])
-    
-    # Safe value formatting
-    spend = float(row["Spend (USD)"]) if pd.notnull(row["Spend (USD)"]) else 0
-    revenue = float(row["Revenue (USD)"]) if pd.notnull(row["Revenue (USD)"]) else 0
-    profit = revenue - spend
+def update_row(i, adset_id, new_budget, new_status):
     try:
-        roas_val = revenue / spend if spend != 0 else 0
-        roas_display = f"{roas_val:.0%}"
+        AdSet(adset_id).api_update({
+            "daily_budget": int(new_budget * 100),
+            "status": new_status
+        })
+        st.success(f"Updated {adset_id}")
+    except Exception as e:
+        st.error(f"Failed to update {adset_id}: {e}")
+
+# Build editable table
+for i, row in df.iterrows():
+    st.write(f"##### {row['Ad Name']}")
+    cols = st.columns([2, 2, 2, 2, 2, 1])
+    
+    cols[0].write(f"Spend: ${row['Spend (USD)']:,.2f}")
+    cols[1].write(f"Revenue: ${row['Revenue (USD)']:,.2f}")
+    cols[2].write(f"Profit: ${row['Profit (USD)']:,.2f}")
+    try:
+        roas_val = float(row['Revenue (USD)']) / float(row['Spend (USD)'])
+        cols[3].write(f"ROAS: {roas_val:.0%}")
     except:
-        roas_display = "N/A"
+        cols[3].write("ROAS: N/A")
 
-    col1.metric("Spend", f"${spend:,.2f}")
-    col1.metric("Revenue", f"${revenue:,.2f}")
-    col2.metric("Profit", f"${profit:,.2f}")
-    col2.metric("ROAS", roas_display)
-
-    # === Control Inputs ===
-    current_budget = row.get("Current Budget (ILS)", 0)
-    current_status = row.get("Current Status", "UNKNOWN")
-    adset_id = str(row.get("Ad Set ID")).replace("'", "")
-
-    col4, col5, col6 = st.columns([2, 2, 1])
-    new_budget = col4.number_input("New Budget (ILS)", min_value=0.0, value=float(current_budget), key=f"budget_{i}")
-    new_status = col5.selectbox("New Status", options=["ACTIVE", "PAUSED"], index=0 if current_status == "ACTIVE" else 1, key=f"status_{i}")
-
-    if col6.button("Apply", key=f"apply_{i}"):
-        try:
-            AdSet(adset_id).api_update({
-                "daily_budget": int(new_budget * 100),
-                "status": new_status
-            })
-            st.success(f"✅ Updated {row['Ad Name']}")
-        except Exception as e:
-            st.error(f"❌ Failed: {e}")
+    new_budget = cols[4].number_input(
+        "New Budget (ILS)", value=float(row.get("Current Budget (ILS)", 0)),
+        key=f"budget_{i}"
+    )
+    new_status = cols[5].selectbox(
+        "New Status", options=["ACTIVE", "PAUSED"],
+        index=0 if row.get("Current Status", "ACTIVE") == "ACTIVE" else 1,
+        key=f"status_{i}"
+    )
+    if cols[5].button("Apply", key=f"apply_{i}"):
+        update_row(i, str(row["Ad Set ID"]).replace("'", ""), new_budget, new_status)
