@@ -1,86 +1,64 @@
 import streamlit as st
 import pandas as pd
 import gspread
-import json
 from datetime import datetime, timedelta
 from google.oauth2.service_account import Credentials
-from facebook_business.api import FacebookAdsApi
-from facebook_business.adobjects.adset import AdSet
+import json
 
-# === Auth ===
+# === התחברות ל-Google Sheets דרך secrets ===
 scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-creds_dict = json.loads(st.secrets["GOOGLE_SHEETS_CREDENTIALS"])
+creds_dict = json.loads(st.secrets["GOOGLE_SHEETS_CREDENTIALS"])  # ✔️ תיקון כאן
 creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
 client = gspread.authorize(creds)
 
-# === Facebook Init ===
-access_token = "..."  # שים כאן את הטוקן שלך
-app_id = "..."        # האפליקציה שלך
-app_secret = "..."    # הסוד
-FacebookAdsApi.init(app_id, app_secret, access_token)
-
-# === Load Sheet ===
+# === פרטי הגיליון ===
 spreadsheet_id = "1n6-m2FidDQBTksrLRAEcc9J3qwy8sfsSrEpfC_fZSoY"
 sheet = client.open_by_key(spreadsheet_id)
-roas_df = pd.DataFrame(sheet.worksheet("ROAS").get_all_records())
-control_df = pd.DataFrame(sheet.worksheet("Manual Control").get_all_records())
+ws = sheet.worksheet("ROAS")
+data = ws.get_all_records()
+df = pd.DataFrame(data)
 
-# === Filter by Date ===
-yesterday = datetime.today() - timedelta(days=1)
-date = st.date_input("Select date", yesterday)
-date_str = date.strftime('%Y-%m-%d')
-
-df = roas_df[roas_df["Date"] == date_str]
-control = control_df[control_df["Date"] == date_str]
-df = df.merge(control, on=["Date", "Ad Name"], how="left", suffixes=('', '_ctrl'))
-
-if df.empty:
-    st.warning("No data for selected date.")
-    st.stop()
-
-# === Set Page ===
-st.set_page_config(layout="wide")
+# === הגדרות הדשבורד ===
+st.set_page_config(page_title="Predicto Ads Dashboard", layout="wide")
 st.title("📊 Predicto Ads Dashboard")
 
-# === Table Display ===
-st.markdown("### ✏️ Editable Control Table")
+# === בחירת תאריך ===
+yesterday = datetime.today() - timedelta(days=1)
+date = st.date_input("בחר תאריך", yesterday)
+date_str = date.strftime("%Y-%m-%d")
 
-# Set defaults
-if "updates" not in st.session_state:
-    st.session_state["updates"] = {}
+# === סינון לפי תאריך ===
+df = df[df["Date"] == date_str]
+if df.empty:
+    st.warning("אין נתונים לתאריך שנבחר.")
+    st.stop()
 
-def update_row(i, adset_id, new_budget, new_status):
-    try:
-        AdSet(adset_id).api_update({
-            "daily_budget": int(new_budget * 100),
-            "status": new_status
-        })
-        st.success(f"Updated {adset_id}")
-    except Exception as e:
-        st.error(f"Failed to update {adset_id}: {e}")
+# === חישובים ===
+df["Spend (USD)"] = pd.to_numeric(df["Spend (USD)"], errors="coerce").fillna(0)
+df["Revenue (USD)"] = pd.to_numeric(df["Revenue (USD)"], errors="coerce").fillna(0)
+df["ROAS"] = (df["Revenue (USD)"] / df["Spend (USD)"]).replace([float("inf"), -float("inf")], 0)
+df["Profit (USD)"] = df["Revenue (USD)"] - df["Spend (USD)"]
 
-# Build editable table
-for i, row in df.iterrows():
-    st.write(f"##### {row['Ad Name']}")
-    cols = st.columns([2, 2, 2, 2, 2, 1])
-    
-    cols[0].write(f"Spend: ${row['Spend (USD)']:,.2f}")
-    cols[1].write(f"Revenue: ${row['Revenue (USD)']:,.2f}")
-    cols[2].write(f"Profit: ${row['Profit (USD)']:,.2f}")
-    try:
-        roas_val = float(row['Revenue (USD)']) / float(row['Spend (USD)'])
-        cols[3].write(f"ROAS: {roas_val:.0%}")
-    except:
-        cols[3].write("ROAS: N/A")
+# === הצגת טבלה ===
+st.subheader("🧾 טבלת מודעות")
+cols = ["Ad Name", "Spend (USD)", "Revenue (USD)", "Profit (USD)", "ROAS"]
+st.dataframe(df[cols].style.format({
+    "Spend (USD)": "${:,.2f}",
+    "Revenue (USD)": "${:,.2f}",
+    "Profit (USD)": "${:,.2f}",
+    "ROAS": "{:.0%}"
+}))
 
-    new_budget = cols[4].number_input(
-        "New Budget (ILS)", value=float(row.get("Current Budget (ILS)", 0)),
-        key=f"budget_{i}"
-    )
-    new_status = cols[5].selectbox(
-        "New Status", options=["ACTIVE", "PAUSED"],
-        index=0 if row.get("Current Status", "ACTIVE") == "ACTIVE" else 1,
-        key=f"status_{i}"
-    )
-    if cols[5].button("Apply", key=f"apply_{i}"):
-        update_row(i, str(row["Ad Set ID"]).replace("'", ""), new_budget, new_status)
+# === סיכום כולל ===
+st.markdown("---")
+st.markdown("### 🧮 סיכום יומי")
+total_spend = df["Spend (USD)"].sum()
+total_revenue = df["Revenue (USD)"].sum()
+total_profit = df["Profit (USD)"].sum()
+total_roas = total_revenue / total_spend if total_spend else 0
+
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("סך הוצאה", f"${total_spend:,.2f}")
+col2.metric("סך הכנסה", f"${total_revenue:,.2f}")
+col3.metric("רווח", f"${total_profit:,.2f}")
+col4.metric("ROAS כולל", f"{total_roas:.0%}")
