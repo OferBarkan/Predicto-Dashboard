@@ -23,82 +23,58 @@ app_id = "1000845402054012"
 app_secret = "516290b16501656af88b98e57ae27da7"
 FacebookAdsApi.init(app_id, app_secret, access_token)
 
-# === Load ROAS Sheet ===
+# === Load Sheets ===
 spreadsheet_id = "1n6-m2FidDQBTksrLRAEcc9J3qwy8sfsSrEpfC_fZSoY"
 sheet = client.open_by_key(spreadsheet_id)
 roas_ws = sheet.worksheet("ROAS")
-roas_data = pd.DataFrame(roas_ws.get_all_records())
+control_ws = sheet.worksheet("Manual Control")
 
-# === Date Filter ===
+# === Load data ===
+roas_df = pd.DataFrame(roas_ws.get_all_records())
+control_df = pd.DataFrame(control_ws.get_all_records())
+
+# === Filter by date ===
 yesterday = datetime.today() - timedelta(days=1)
 selected_date = st.date_input("Select Date", yesterday)
 date_str = selected_date.strftime("%Y-%m-%d")
 
-df = roas_data[roas_data["Date"] == date_str]
-if df.empty:
+df = roas_df[roas_df["Date"] == date_str]
+control = control_df[control_df["Date"] == date_str]
+
+if df.empty or control.empty:
     st.warning("No data for selected date.")
     st.stop()
 
-# === Calculations ===
-df["Spend (USD)"] = pd.to_numeric(df["Spend (USD)"], errors="coerce").fillna(0)
-df["Revenue (USD)"] = pd.to_numeric(df["Revenue (USD)"], errors="coerce").fillna(0)
-df["ROAS"] = (df["Revenue (USD)"] / df["Spend (USD)"]).replace([float("inf"), -float("inf")], 0)
-df["Profit (USD)"] = df["Revenue (USD)"] - df["Spend (USD)"]
+# === Merge ROAS + Manual ===
+df = df.merge(control, on=["Date", "Ad Name"], how="left", suffixes=('', '_ctrl'))
 
-# === Display ROAS Table ===
-st.subheader("📋 Ads Overview")
-roas_cols = ["Ad Name", "Spend (USD)", "Revenue (USD)", "Profit (USD)", "ROAS"]
-st.dataframe(df[roas_cols].style.format({
-    "Spend (USD)": "${:,.2f}",
-    "Revenue (USD)": "${:,.2f}",
-    "Profit (USD)": "${:,.2f}",
-    "ROAS": "{:.0%}"
-}))
+# === Display table with inline controls ===
+st.markdown("### 🎛️ Ad Set Control Panel")
 
-# === Summary ===
-st.markdown("---")
-st.markdown("### 🔢 Daily Summary")
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Total Spend", f"${df['Spend (USD)'].sum():,.2f}")
-col2.metric("Total Revenue", f"${df['Revenue (USD)'].sum():,.2f}")
-col3.metric("Profit", f"${df['Profit (USD)'].sum():,.2f}")
-col4.metric("True ROAS", f"{(df['Revenue (USD)'].sum() / df['Spend (USD)'].sum() if df['Spend (USD)'].sum() else 0):.0%}")
-
-# === Load Manual Control Tab ===
-st.markdown("---")
-st.subheader("🎛️ Manual Control")
-
-try:
-    control_ws = sheet.worksheet("Manual Control")
-    control_df = pd.DataFrame(control_ws.get_all_records())
-except Exception as e:
-    st.error("Couldn't load 'Manual Control' tab.")
-    st.stop()
-
-# === Row-by-row controls ===
-for i, row in control_df.iterrows():
-    ad_name = row["Ad Name"]
-    adset_id = str(row["Ad Set ID"]).replace("'", "")
-    current_status = row.get("Current Status", "UNKNOWN")
-    current_budget = row.get("Current Budget (ILS)", 0)
-
+for i, row in df.iterrows():
     st.markdown("----")
-    st.markdown(f"#### 📣 {ad_name}")
-    c1, c2, c3 = st.columns([3, 3, 2])
+    st.markdown(f"#### 📣 {row['Ad Name']}")
 
-    with c1:
-        new_budget = st.number_input("New Budget (ILS)", min_value=0.0, value=float(current_budget), key=f"budget_{i}")
+    col1, col2, col3 = st.columns([2, 2, 1])
+    col1.metric("Spend", f"${row['Spend (USD)']:,.2f}")
+    col1.metric("Revenue", f"${row['Revenue (USD)']:,.2f}")
+    col2.metric("ROAS", f"{row['ROAS']:.0%}")
+    col2.metric("Profit", f"${row['Profit (USD)']:,.2f}")
 
-    with c2:
-        new_status = st.selectbox("New Status", options=["ACTIVE", "PAUSED"], index=0 if current_status == "ACTIVE" else 1, key=f"status_{i}")
+    current_budget = row.get("Current Budget (ILS)", 0)
+    current_status = row.get("Current Status", "UNKNOWN")
+    adset_id = str(row.get("Ad Set ID")).replace("'", "")
 
-    with c3:
-        if st.button("Apply", key=f"apply_{i}"):
-            try:
-                AdSet(adset_id).api_update({
-                    "daily_budget": int(new_budget * 100),  # ILS to agorot
-                    "status": new_status
-                })
-                st.success(f"✅ Updated: {ad_name}")
-            except Exception as e:
-                st.error(f"❌ Failed to update {ad_name}: {e}")
+    col4, col5, col6 = st.columns([2, 2, 1])
+    new_budget = col4.number_input("New Budget (ILS)", min_value=0.0, value=float(current_budget), key=f"budget_{i}")
+    new_status = col5.selectbox("New Status", options=["ACTIVE", "PAUSED"], index=0 if current_status == "ACTIVE" else 1, key=f"status_{i}")
+
+    if col6.button("Apply", key=f"apply_{i}"):
+        try:
+            AdSet(adset_id).api_update({
+                "daily_budget": int(new_budget * 100),
+                "status": new_status
+            })
+            st.success(f"✅ Updated {row['Ad Name']}")
+        except Exception as e:
+            st.error(f"❌ Failed: {e}")
