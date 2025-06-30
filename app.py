@@ -40,7 +40,6 @@ df = roas_df.merge(
     how="left"
 )
 
-
 # === הגדרות הדשבורד ===
 st.set_page_config(page_title="Predicto Ads Dashboard", layout="wide")
 st.title("📊 Predicto Ads Dashboard")
@@ -72,7 +71,7 @@ for i, row in df.iterrows():
     col2.metric("Spend", f"${row['Spend (USD)']:.2f}")
     col3.metric("Revenue", f"${row['Revenue (USD)']:.2f}")
     col4.metric("Profit", f"${row['Profit (USD)']:.2f}")
-    
+
     try:
         default_budget = float(row.get("New Budget", 0))
     except:
@@ -82,26 +81,25 @@ for i, row in df.iterrows():
     new_status = col6.selectbox("New Status", ["ACTIVE", "PAUSED"], index=0, key=f"status_{i}")
 
     if col7.button("Apply", key=f"apply_{i}"):
-    adset_id = str(row.get("Ad Set ID", "")).strip().replace("'", "")
-    try:
-        adset = AdSet(adset_id)
-        update_params = {}
+        adset_id = str(row.get("Ad Set ID", "")).strip().replace("'", "")
+        try:
+            adset = AdSet(adset_id)
+            update_params = {}
 
-        if new_budget > 0:
-            update_params["daily_budget"] = int(new_budget * 100)
+            if new_budget > 0:
+                update_params["daily_budget"] = int(new_budget * 100)
 
-        if new_status:
-            update_params["status"] = new_status
+            if new_status:
+                update_params["status"] = new_status
 
-        if update_params:
-            adset.api_update(params=update_params)
-            st.success(f"✔️ Updated {row['Ad Name']}")
-        else:
-            st.warning(f"⚠️ No valid updates provided for {row['Ad Name']}")
+            if update_params:
+                adset.api_update(params=update_params)
+                st.success(f"✔️ Updated {row['Ad Name']}")
+            else:
+                st.warning(f"⚠️ No valid updates provided for {row['Ad Name']}")
 
-    except Exception as e:
-        st.error(f"❌ Failed to update {row['Ad Name']}: {e}")
-
+        except Exception as e:
+            st.error(f"❌ Failed to update {row['Ad Name']}: {e}")
 
 # === סיכום כולל ===
 st.markdown("---")
