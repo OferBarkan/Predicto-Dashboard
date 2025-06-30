@@ -23,9 +23,23 @@ FacebookAdsApi.init(
 # === פרטי הגיליון ===
 spreadsheet_id = "1n6-m2FidDQBTksrLRAEcc9J3qwy8sfsSrEpfC_fZSoY"
 sheet = client.open_by_key(spreadsheet_id)
-ws = sheet.worksheet("ROAS")
-data = ws.get_all_records()
-df = pd.DataFrame(data)
+# טאב ROAS
+roas_ws = sheet.worksheet("ROAS")
+roas_data = roas_ws.get_all_records()
+roas_df = pd.DataFrame(roas_data)
+
+# טאב Manual Control
+manual_ws = sheet.worksheet("Manual Control")
+manual_data = manual_ws.get_all_records()
+manual_df = pd.DataFrame(manual_data)
+
+# מיזוג לפי Ad Name
+df = roas_df.merge(
+    manual_df[["Ad Name", "Ad Set ID", "New Budget", "New Status"]],
+    on="Ad Name",
+    how="left"
+)
+
 
 # === הגדרות הדשבורד ===
 st.set_page_config(page_title="Predicto Ads Dashboard", layout="wide")
