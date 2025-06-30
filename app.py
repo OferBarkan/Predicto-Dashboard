@@ -37,7 +37,7 @@ df = roas_df.merge(
 
 # === הגדרות הדשבורד ===
 st.set_page_config(page_title="Predicto Ads Dashboard", layout="wide")
-st.title("\ud83d\udcca Predicto Ads Dashboard")
+st.title("Predicto Ads Dashboard")
 
 # === בחירת תאריך ===
 yesterday = datetime.today() - timedelta(days=1)
