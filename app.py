@@ -66,6 +66,20 @@ df["Current Budget"] = pd.to_numeric(df["Current Budget (ILS)"], errors="coerce"
 df["Style ID"] = df["Ad Name"].str.split("-").str[0]
 df = df.sort_values(by=["Style ID", "ROAS"], ascending=[True, False])
 
+# === סיכום כולל ===
+st.markdown("---")
+st.markdown("### Daily Summary")
+total_spend = df["Spend (USD)"].sum()
+total_revenue = df["Revenue (USD)"].sum()
+total_profit = df["Profit (USD)"].sum()
+total_roas = total_revenue / total_spend if total_spend else 0
+
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Total Spend", f"${total_spend:,.2f}")
+col2.metric("Total Revenue", f"${total_revenue:,.2f}")
+col3.metric("Total Profit", f"${total_profit:,.2f}")
+col4.metric("Total ROAS", f"{total_roas:.0%}")
+
 # === בחר Style ID להצגה ===
 st.subheader("Ad Set Control Panel")
 style_options = ["All"] + sorted(df["Style ID"].unique())
@@ -161,16 +175,4 @@ if selected_style != "All":
         unsafe_allow_html=True
     )
 
-# === סיכום כולל ===
-st.markdown("---")
-st.markdown("### Daily Summary")
-total_spend = df["Spend (USD)"].sum()
-total_revenue = df["Revenue (USD)"].sum()
-total_profit = df["Profit (USD)"].sum()
-total_roas = total_revenue / total_spend if total_spend else 0
 
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Total Spend", f"${total_spend:,.2f}")
-col2.metric("Total Revenue", f"${total_revenue:,.2f}")
-col3.metric("Total Profit", f"${total_profit:,.2f}")
-col4.metric("Total ROAS", f"{total_roas:.0%}")
