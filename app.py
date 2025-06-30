@@ -68,7 +68,7 @@ for i, row in df.iterrows():
     new_status = col6.selectbox("New Status", ["ACTIVE", "PAUSED"], index=0, key=f"status_{i}")
 
     if col7.button("Apply", key=f"apply_{i}"):
-        adset_id = str(row.get("Ad Name", "")).split("-")[0]
+        adset_id = str(row.get("Ad Set ID")).strip()
         try:
             adset = AdSet(adset_id)
             adset.api_update(params={"daily_budget": int(new_budget * 100), "status": new_status})
