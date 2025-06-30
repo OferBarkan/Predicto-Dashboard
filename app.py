@@ -80,20 +80,21 @@ for i, row in df.iterrows():
     roas_display = f"{roas:.0%}"
 
     if roas < 0.70:
-        color = "#f8d7da"  # אדום חזק
+        bg_color = "#B31B1B"   # אדום חזק
     elif roas <= 0.95:
-        color = "#fce8e6"  # אדום בהיר
+        bg_color = "#FDC1C5"   # אדום בהיר
     elif roas <= 1.10:
-        color = "#fff3cd"  # צהוב בהיר
+        bg_color = "#FBEEAC"   # צהוב בהיר
     elif roas <= 1.40:
-        color = "#d4edda"  # ירוק בהיר
+        bg_color = "#93C572"   # ירוק בהיר
     else:
-        color = "#a1e6b0"  # ירוק כהה
+        bg_color = "#019529"   # ירוק כהה
 
     col5.markdown(
-        f"<div style='background-color: {color}; padding: 4px; border-radius: 4px; text-align: center;'>{roas_display}</div>",
+        f"<div style='background-color: {bg_color}; color: black; padding: 4px; border-radius: 4px; text-align: center;'>{roas_display}</div>",
         unsafe_allow_html=True
-)
+    )
+
 
     col6.markdown(f"{row['Current Budget (ILS)']:.1f}")
 
