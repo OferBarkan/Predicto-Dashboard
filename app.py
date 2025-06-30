@@ -59,7 +59,20 @@ df["Profit (USD)"] = df["Revenue (USD)"] - df["Spend (USD)"]
 
 # Editable table
 st.subheader("Ad Set Control Panel")
+
+# Table header row
+h1, h2, h3, h4, h5, h6, h7, h8 = st.columns([2, 1, 1, 1, 1, 1, 1, 1])
+h1.markdown("**Ad Name**")
+h2.markdown("**Spend**")
+h3.markdown("**Revenue**")
+h4.markdown("**Profit**")
+h5.markdown("**ROAS**")
+h6.markdown("**New Budget**")
+h7.markdown("**New Status**")
+h8.markdown("**Action**")
+
 for i, row in df.iterrows():
+
     col1, col2, col3, col4, col5, col6, col7, col8 = st.columns([2, 1, 1, 1, 1, 1, 1, 1])
     col1.text(row["Ad Name"])
     col2.text(f"${row['Spend (USD)']:.2f}")
