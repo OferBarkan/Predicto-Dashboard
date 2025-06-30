@@ -48,7 +48,7 @@ st.markdown("### ✏️ Editable Control Table")
 for i, row in df.iterrows():
     st.markdown(f"**{row['Ad Name']}**")
     col1, col2, col3, col4, col5, col6, col7 = st.columns([1, 1, 1, 1, 2, 2, 1])
-    col1.metric("Spend", f"${row['Current Budget']:.2f}")
+    col1.metric("Spend", f"${row['Current Budget (ILS)']:.2f}")
     col2.metric("Revenue", f"${row.get('Revenue (USD)', 0):.2f}")
     col3.metric("Profit", f"${row.get('Profit (USD)', 0):.2f}")
     col4.metric("ROAS", f"{row.get('ROAS', 0):.0%}")
