@@ -64,12 +64,18 @@ for i, row in df.iterrows():
         col3.metric("Profit", f"${row['Profit (USD)']:.2f}")
         col4.metric("ROAS", f"{row['ROAS']:.0%}")
 
-        try:
-    default_budget = float(row.get("New Budget", 0))
-except ValueError:
-    default_budget = 0.0
+   try:
+        default_budget = float(row.get("New Budget", 0))
+    except (ValueError, TypeError):
+        default_budget = 0.0
 
-        new_budget = col5.number_input("New Budget (ILS)", value=default_budget, step=1.0, key=f"budget_{i}")
+    new_budget = col5.number_input(
+        "New Budget (ILS)",
+        value=default_budget,
+        step=1.0,
+        key=f"budget_{i}"
+    )
+
         new_status = col6.selectbox("New Status", ["ACTIVE", "PAUSED"], index=0 if row.get("New Status") == "ACTIVE" else 1, key=f"status_{i}")
 
         if st.button("Apply", key=f"apply_{i}"):
