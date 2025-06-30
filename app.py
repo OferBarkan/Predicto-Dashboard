@@ -31,7 +31,7 @@ manual_df = pd.DataFrame(manual_ws.get_all_records())
 
 # Merge on Ad Name
 df = roas_df.merge(
-    manual_df[["Ad Name", "Ad Set ID", "New Budget", "New Status"]],
+    manual_df[["Ad Name", "Ad Set ID", "Current Budget (ILS)", "New Budget", "New Status"]],
     on="Ad Name",
     how="left"
 )
@@ -61,34 +61,35 @@ df["Profit (USD)"] = df["Revenue (USD)"] - df["Spend (USD)"]
 st.subheader("Ad Set Control Panel")
 
 # Table header row
-h1, h2, h3, h4, h5, h6, h7, h8 = st.columns([2, 1, 1, 1, 1, 1, 1, 1])
+h1, h2, h3, h4, h5, h6, h7, h8, h9 = st.columns([2, 1, 1, 1, 1, 1, 1, 1, 1])
 h1.markdown("**Ad Name**")
 h2.markdown("**Spend**")
 h3.markdown("**Revenue**")
 h4.markdown("**Profit**")
 h5.markdown("**ROAS**")
-h6.markdown("**New Budget**")
-h7.markdown("**New Status**")
-h8.markdown("**Action**")
+h6.markdown("**Current Budget**")
+h7.markdown("**New Budget**")
+h8.markdown("**New Status**")
+h9.markdown("**Action**")
 
 for i, row in df.iterrows():
-
-    col1, col2, col3, col4, col5, col6, col7, col8 = st.columns([2, 1, 1, 1, 1, 1, 1, 1])
-    col1.text(row["Ad Name"])
-    col2.text(f"${row['Spend (USD)']:.2f}")
-    col3.text(f"${row['Revenue (USD)']:.2f}")
-    col4.text(f"${row['Profit (USD)']:.2f}")
-    col5.text(f"{row['ROAS']:.0%}")
+    col1, col2, col3, col4, col5, col6, col7, col8, col9 = st.columns([2, 1, 1, 1, 1, 1, 1, 1, 1])
+    col1.markdown(f"{row['Ad Name']}")
+    col2.markdown(f"${row['Spend (USD)']:.2f}")
+    col3.markdown(f"${row['Revenue (USD)']:.2f}")
+    col4.markdown(f"${row['Profit (USD)']:.2f}")
+    col5.markdown(f"{row['ROAS']:.0%}")
+    col6.markdown(f"{row.get('Current Budget (ILS)', 0)}")
 
     try:
         default_budget = float(row.get("New Budget", 0))
     except:
         default_budget = 0.0
 
-    new_budget = col6.number_input("New Budget", value=default_budget, step=1.0, key=f"budget_{i}")
-    new_status = col7.selectbox("New Status", ["ACTIVE", "PAUSED"], index=0, key=f"status_{i}")
+    new_budget = col7.number_input(" ", value=default_budget, step=1.0, key=f"budget_{i}")
+    new_status = col8.selectbox(" ", ["ACTIVE", "PAUSED"], index=0, key=f"status_{i}")
 
-    if col8.button("Apply", key=f"apply_{i}"):
+    if col9.button("Apply", key=f"apply_{i}"):
         adset_id = str(row.get("Ad Set ID", "")).strip().replace("'", "")
         try:
             adset = AdSet(adset_id)
@@ -96,17 +97,17 @@ for i, row in df.iterrows():
 
             if new_budget > 0:
                 update_params["daily_budget"] = int(new_budget * 100)
-
             if new_status:
                 update_params["status"] = new_status
 
             if update_params:
                 adset.api_update(params=update_params)
-                st.success(f"Updated {row['Ad Name']}")
+                st.success(f"✔️ Updated {row['Ad Name']}")
             else:
-                st.warning(f"No updates provided for {row['Ad Name']}")
+                st.warning(f"⚠️ No valid updates for {row['Ad Name']}")
         except Exception as e:
-            st.error(f"Failed to update {row['Ad Name']}: {e}")
+            st.error(f"❌ Failed to update {row['Ad Name']}: {e}")
+
 
 # Summary
 st.markdown("---")
