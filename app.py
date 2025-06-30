@@ -35,7 +35,7 @@ man_df = pd.DataFrame(manual_data)
 
 # מיזוג לפי Ad Name
 merged_df = roas_df.merge(
-    man_df[["Ad Name", "Ad Set ID", "Current Budget", "New Budget", "New Status"]],
+    man_df[["Ad Name", "Ad Set ID", "Current Budget (ILS)", "New Budget", "New Status"]],
     on="Ad Name",
     how="left"
 )
