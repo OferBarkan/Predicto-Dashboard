@@ -76,7 +76,25 @@ for i, row in df.iterrows():
     col2.markdown(f"${row['Spend (USD)']:.2f}")
     col3.markdown(f"${row['Revenue (USD)']:.2f}")
     col4.markdown(f"${row['Profit (USD)']:.2f}")
-    col5.markdown(f"{row['ROAS']:.0%}")
+    roas = row["ROAS"]
+    roas_display = f"{roas:.0%}"
+
+    if roas < 0.70:
+        color = "#f8d7da"  # אדום חזק
+    elif roas <= 0.95:
+        color = "#fce8e6"  # אדום בהיר
+    elif roas <= 1.10:
+        color = "#fff3cd"  # צהוב בהיר
+    elif roas <= 1.40:
+        color = "#d4edda"  # ירוק בהיר
+    else:
+        color = "#a1e6b0"  # ירוק כהה
+
+    col5.markdown(
+        f"<div style='background-color: {color}; padding: 4px; border-radius: 4px; text-align: center;'>{roas_display}</div>",
+        unsafe_allow_html=True
+)
+
     col6.markdown(f"{row['Current Budget (ILS)']:.1f}")
 
     try:
