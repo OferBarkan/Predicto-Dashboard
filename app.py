@@ -60,6 +60,11 @@ df["Spend (USD)"] = pd.to_numeric(df["Spend (USD)"], errors="coerce").fillna(0)
 df["Revenue (USD)"] = pd.to_numeric(df["Revenue (USD)"], errors="coerce").fillna(0)
 df["ROAS"] = (df["Revenue (USD)"] / df["Spend (USD)"]).replace([float("inf"), -float("inf")], 0)
 df["Profit (USD)"] = df["Revenue (USD)"] - df["Spend (USD)"]
+df["Current Budget"] = pd.to_numeric(df["Current Budget (ILS)"], errors="coerce").fillna(0)
+
+# === חילוץ Style ID ===
+df["Style ID"] = df["Ad Name"].str.split("-").str[0]
+df = df.sort_values(by=["Style ID", "ROAS"], ascending=[True, False])
 
 # === הצגת טבלה עם שדות ניתנים לעריכה ===
 st.subheader("Ad Set Control Panel")
@@ -69,34 +74,37 @@ headers = ["Ad Name", "Spend", "Revenue", "Profit", "ROAS", "Current Budget", "N
 for col, title in zip(header_cols, headers):
     col.markdown(f"**{title}**")
 
+last_style = None
 for i, row in df.iterrows():
-    col1, col2, col3, col4, col5, col6, col7, col8, col9 = st.columns([2, 1, 1, 1, 1, 1, 1.5, 1.5, 1])
+    if row["Style ID"] != last_style:
+        style_df = df[df["Style ID"] == row["Style ID"]]
+        style_spend = style_df["Spend (USD)"].sum()
+        style_revenue = style_df["Revenue (USD)"].sum()
+        style_profit = style_df["Profit (USD)"].sum()
+        style_roas = style_revenue / style_spend if style_spend else 0
+        st.markdown(f"#### 🧾 Style ID: `{row['Style ID']}` | Spend: **${style_spend:.2f}**, Revenue: **${style_revenue:.2f}**, Profit: **${style_profit:.2f}**, ROAS: **{style_roas:.0%}**")
+        last_style = row["Style ID"]
 
+    col1, col2, col3, col4, col5, col6, col7, col8, col9 = st.columns([2, 1, 1, 1, 1, 1, 1.5, 1.5, 1])
     col1.markdown(row["Ad Name"])
     col2.markdown(f"${row['Spend (USD)']:.2f}")
     col3.markdown(f"${row['Revenue (USD)']:.2f}")
     col4.markdown(f"${row['Profit (USD)']:.2f}")
-    roas = row["ROAS"]
-    roas_display = f"{roas:.0%}"
 
-    if roas < 0.70:
-        bg_color = "#B31B1B"   # אדום חזק
-    elif roas <= 0.95:
-        bg_color = "#FDC1C5"   # אדום בהיר
-    elif roas <= 1.10:
-        bg_color = "#FBEEAC"   # צהוב בהיר
-    elif roas <= 1.40:
-        bg_color = "#93C572"   # ירוק בהיר
+    roas = row['ROAS']
+    if roas < 0.7:
+        roas_color = "#B31B1B"
+    elif roas < 0.95:
+        roas_color = "#FDC1C5"
+    elif roas < 1.10:
+        roas_color = "#FBEEAC"
+    elif roas < 1.40:
+        roas_color = "#93C572"
     else:
-        bg_color = "#019529"   # ירוק כהה
+        roas_color = "#019529"
+    col5.markdown(f"<div style='background-color:{roas_color}; padding:4px 8px; border-radius:4px; text-align:center; color:black'><b>{roas:.0%}</b></div>", unsafe_allow_html=True)
 
-    col5.markdown(
-        f"<div style='background-color: {bg_color}; color: black; padding: 4px; border-radius: 4px; text-align: center;'>{roas_display}</div>",
-        unsafe_allow_html=True
-    )
-
-
-    col6.markdown(f"{row['Current Budget (ILS)']:.1f}")
+    col6.markdown(f"{row['Current Budget']:.1f}")
 
     try:
         default_budget = float(row.get("New Budget", 0))
