@@ -77,7 +77,7 @@ for i, row in df.iterrows():
     col3.markdown(f"${row['Revenue (USD)']:.2f}")
     col4.markdown(f"${row['Profit (USD)']:.2f}")
     col5.markdown(f"{row['ROAS']:.0%}")
-    col6.markdown(f"{row['Current Budget']:.1f}")
+    col6.markdown(f"{row['Current Budget (ILS)']:.1f}")
 
     try:
         default_budget = float(row.get("New Budget", 0))
