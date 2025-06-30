@@ -82,13 +82,26 @@ for i, row in df.iterrows():
     new_status = col6.selectbox("New Status", ["ACTIVE", "PAUSED"], index=0, key=f"status_{i}")
 
     if col7.button("Apply", key=f"apply_{i}"):
-        adset_id = str(row.get("Ad Set ID", "")).strip().replace("'", "")
-        try:
-            adset = AdSet(adset_id)
-            adset.api_update(params={"daily_budget": int(new_budget * 100), "status": new_status})
+    adset_id = str(row.get("Ad Set ID", "")).strip().replace("'", "")
+    try:
+        adset = AdSet(adset_id)
+        update_params = {}
+
+        if new_budget > 0:
+            update_params["daily_budget"] = int(new_budget * 100)
+
+        if new_status:
+            update_params["status"] = new_status
+
+        if update_params:
+            adset.api_update(params=update_params)
             st.success(f"✔️ Updated {row['Ad Name']}")
-        except Exception as e:
-            st.error(f"❌ Failed to update {row['Ad Name']}: {e}")
+        else:
+            st.warning(f"⚠️ No valid updates provided for {row['Ad Name']}")
+
+    except Exception as e:
+        st.error(f"❌ Failed to update {row['Ad Name']}: {e}")
+
 
 # === סיכום כולל ===
 st.markdown("---")
