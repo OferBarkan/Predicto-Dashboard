@@ -62,9 +62,17 @@ df["ROAS"] = (df["Revenue (USD)"] / df["Spend (USD)"]).replace([float("inf"), -f
 df["Profit (USD)"] = df["Revenue (USD)"] - df["Spend (USD)"]
 df["Current Budget"] = pd.to_numeric(df["Current Budget (ILS)"], errors="coerce").fillna(0)
 
-# === חילוץ Style ID ===
+# === חילוץ Style ID והוספת תפריט סינון ===
 df["Style ID"] = df["Ad Name"].str.split("-").str[0]
 df = df.sort_values(by=["Style ID", "ROAS"], ascending=[True, False])
+
+# תפריט לבחירת Style ID
+style_options = ["All"] + sorted(df["Style ID"].unique())
+selected_style = st.selectbox("🔍 Filter by Style ID", options=style_options)
+
+# סינון אם נבחר סגנון מסוים
+if selected_style != "All":
+    df = df[df["Style ID"] == selected_style]
 
 # === הצגת טבלה עם שדות ניתנים לעריכה ===
 st.subheader("Ad Set Control Panel")
@@ -74,16 +82,15 @@ headers = ["Ad Name", "Spend", "Revenue", "Profit", "ROAS", "Current Budget", "N
 for col, title in zip(header_cols, headers):
     col.markdown(f"**{title}**")
 
-last_style = None
+if selected_style != "All":
+    style_df = df
+    style_spend = style_df["Spend (USD)"].sum()
+    style_revenue = style_df["Revenue (USD)"].sum()
+    style_profit = style_df["Profit (USD)"].sum()
+    style_roas = style_revenue / style_spend if style_spend else 0
+    st.markdown(f"#### 📘 Summary for Style ID `{selected_style}` — Spend: **${style_spend:.2f}**, Revenue: **${style_revenue:.2f}**, Profit: **${style_profit:.2f}**, ROAS: **{style_roas:.0%}**")
+
 for i, row in df.iterrows():
-    if row["Style ID"] != last_style:
-        style_df = df[df["Style ID"] == row["Style ID"]]
-        style_spend = style_df["Spend (USD)"].sum()
-        style_revenue = style_df["Revenue (USD)"].sum()
-        style_profit = style_df["Profit (USD)"].sum()
-        style_roas = style_revenue / style_spend if style_spend else 0
-        st.markdown(f"#### 🧾 Style ID: `{row['Style ID']}` | Spend: **${style_spend:.2f}**, Revenue: **${style_revenue:.2f}**, Profit: **${style_profit:.2f}**, ROAS: **{style_roas:.0%}**")
-        last_style = row["Style ID"]
 
     col1, col2, col3, col4, col5, col6, col7, col8, col9 = st.columns([2, 1, 1, 1, 1, 1, 1.5, 1.5, 1])
     col1.markdown(row["Ad Name"])
