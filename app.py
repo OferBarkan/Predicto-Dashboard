@@ -64,7 +64,7 @@ df["Current Budget"] = pd.to_numeric(df["Current Budget (ILS)"], errors="coerce"
 
 # === חילוץ Style ID ===
 df["Style ID"] = df["Ad Name"].str.split("-").str[0]
-df = df.sort_values(by=["Style ID", "ROAS"], ascending=[True, False])
+df = df.sort_values(by=["Style ID", "Ad Name"], ascending=[True, False])
 
 # === סיכום כולל ===
 st.markdown("---")
