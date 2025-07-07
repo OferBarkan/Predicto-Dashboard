@@ -99,19 +99,22 @@ if selected_style != "All":
     df = df[df["Style ID"] == selected_style]
 
 # === כותרות טבלה ===
-header_cols = st.columns([2, 1, 1, 1, 1, 1, 1.5, 1.5, 1])
-headers = ["Ad Name", "Spend", "Revenue", "Profit", "ROAS", "Current Budget", "New Budget", "New Status", "Action"]
 if date_str == today_str:
-    header_cols.insert(5, st.column(1))
-    headers.insert(5, "DBF")
+    header_cols = st.columns([2, 1, 1, 1, 1, 1, 1.5, 1.5, 1])
+    headers = ["Ad Name", "Spend", "Revenue", "Profit", "ROAS", "DBF", "Current Budget", "New Budget", "New Status", "Action"]
+else:
+    header_cols = st.columns([2, 1, 1, 1, 1, 1.5, 1.5, 1])
+    headers = ["Ad Name", "Spend", "Revenue", "Profit", "ROAS", "Current Budget", "New Budget", "New Status", "Action"]
+
 for col, title in zip(header_cols, headers):
     col.markdown(f"**{title}**")
 
 # === טבלת שורות ===
 for i, row in df.iterrows():
-    cols = st.columns([2, 1, 1, 1, 1, 1, 1.5, 1.5, 1])
     if date_str == today_str:
-        cols.insert(5, st.column(1))
+        cols = st.columns([2, 1, 1, 1, 1, 1, 1.5, 1.5, 1])
+    else:
+        cols = st.columns([2, 1, 1, 1, 1, 1.5, 1.5, 1])
 
     cols[0].markdown(row["Ad Name"])
     cols[1].markdown(f"${row['Spend (USD)']:.2f}")
@@ -131,12 +134,11 @@ for i, row in df.iterrows():
         roas_color = "#019529"
     cols[4].markdown(f"<div style='background-color:{roas_color}; padding:4px 8px; border-radius:4px; text-align:center; color:black'><b>{roas:.0%}</b></div>", unsafe_allow_html=True)
 
+    offset = 0
     if date_str == today_str:
         dbf_val = row.get("DBF", "")
         cols[5].markdown(f"{dbf_val:.0%}" if pd.notnull(dbf_val) else "")
         offset = 1
-    else:
-        offset = 0
 
     cols[5+offset].markdown(f"{row['Current Budget']:.1f}")
 
