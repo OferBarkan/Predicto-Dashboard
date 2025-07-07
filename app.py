@@ -60,6 +60,9 @@ if date_str == today_str:
         on=["Ad Name", "Custom Channel ID", "Search Style ID"],
         how="left"
     )
+    matched = df[df["DBF"].notnull()]
+st.info(f"✅ Found {len(matched)} matching ads with DBF values")
+
 else:
     df["DBF"] = None
 
