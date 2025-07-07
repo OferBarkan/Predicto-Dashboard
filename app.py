@@ -51,20 +51,25 @@ if date_str == today_str:
         "Ad Name", "Custom Channel ID", "Search Style ID", "ROAS"
     ]].rename(columns={"ROAS": "DBF"})
 
+    # ניקוי מזהים לוודאות במיזוג
     for col in ["Ad Name", "Custom Channel ID", "Search Style ID"]:
         df[col] = df[col].astype(str).str.strip()
         roas_yesterday[col] = roas_yesterday[col].astype(str).str.strip()
 
+    # מיזוג לפי שלושת המזהים
     df = df.merge(
         roas_yesterday,
         on=["Ad Name", "Custom Channel ID", "Search Style ID"],
         how="left"
     )
+
+    # בדיקה כמה מודעות אכן קיבלו DBF
     matched = df[df["DBF"].notnull()]
-st.info(f"✅ Found {len(matched)} matching ads with DBF values")
+    st.info(f"✅ Found {len(matched)} matching ads with DBF values")
 
 else:
     df["DBF"] = None
+
 
 # === חישובים ===
 df["Spend (USD)"] = pd.to_numeric(df["Spend (USD)"], errors="coerce").fillna(0)
