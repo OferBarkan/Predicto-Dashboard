@@ -23,24 +23,12 @@ FacebookAdsApi.init(
 # === פרטי הגיליון ===
 spreadsheet_id = "1n6-m2FidDQBTksrLRAEcc9J3qwy8sfsSrEpfC_fZSoY"
 sheet = client.open_by_key(spreadsheet_id)
-# טאב ROAS
 roas_ws = sheet.worksheet("ROAS")
-roas_data = roas_ws.get_all_records()
-roas_df = pd.DataFrame(roas_data)
+man_ws = sheet.worksheet("Manual Control")
+roas_df = pd.DataFrame(roas_ws.get_all_records())
+man_df = pd.DataFrame(man_ws.get_all_records())
 
-# טאב Manual Control
-manual_ws = sheet.worksheet("Manual Control")
-manual_data = manual_ws.get_all_records()
-man_df = pd.DataFrame(manual_data)
-
-# מיזוג לפי Ad Name
-merged_df = roas_df.merge(
-    man_df[["Ad Name", "Ad Set ID", "Current Budget (ILS)", "New Budget", "New Status"]],
-    on="Ad Name",
-    how="left"
-)
-
-# === הגדרות הדשבורד ===
+# === הגדרות דשבורד ===
 st.set_page_config(page_title="Predicto Ads Dashboard", layout="wide")
 st.title("Predicto Ads Dashboard")
 
@@ -48,19 +36,41 @@ st.title("Predicto Ads Dashboard")
 yesterday = datetime.today() - timedelta(days=1)
 date = st.date_input("Select Date", yesterday)
 date_str = date.strftime("%Y-%m-%d")
+today_str = datetime.today().strftime("%Y-%m-%d")
 
-# === סינון לפי תאריך ===
-df = merged_df[merged_df["Date"] == date_str]
+# === סינון נתונים לפי תאריך נבחר ===
+df = roas_df[roas_df["Date"] == date_str].copy()
 if df.empty:
     st.warning("No data available for the selected date.")
     st.stop()
+
+# === הצמדת נתוני אתמול (ROAS בלבד) במקרה ונבחר תאריך של היום ===
+if date_str == today_str:
+    yesterday_str = (datetime.today() - timedelta(days=1)).strftime("%Y-%m-%d")
+    roas_yesterday = roas_df[roas_df["Date"] == yesterday_str][[
+        "Ad Name", "Custom Channel ID", "Search Style ID", "ROAS"
+    ]].rename(columns={"ROAS": "DBF"})
+    df = df.merge(
+        roas_yesterday,
+        on=["Ad Name", "Custom Channel ID", "Search Style ID"],
+        how="left"
+    )
+else:
+    df["DBF"] = None
 
 # === חישובים ===
 df["Spend (USD)"] = pd.to_numeric(df["Spend (USD)"], errors="coerce").fillna(0)
 df["Revenue (USD)"] = pd.to_numeric(df["Revenue (USD)"], errors="coerce").fillna(0)
 df["ROAS"] = (df["Revenue (USD)"] / df["Spend (USD)"]).replace([float("inf"), -float("inf")], 0)
 df["Profit (USD)"] = df["Revenue (USD)"] - df["Spend (USD)"]
-df["Current Budget"] = pd.to_numeric(df["Current Budget (ILS)"], errors="coerce").fillna(0)
+
+man_df["Current Budget (ILS)"] = pd.to_numeric(man_df["Current Budget (ILS)"], errors="coerce").fillna(0)
+df = df.merge(
+    man_df[["Ad Name", "Ad Set ID", "Current Budget (ILS)", "New Budget", "New Status"]],
+    on="Ad Name",
+    how="left"
+)
+df["Current Budget"] = df["Current Budget (ILS)"]
 
 # === חילוץ Style ID ===
 df["Style ID"] = df["Ad Name"].str.split("-").str[0]
@@ -80,7 +90,7 @@ col2.metric("Total Revenue", f"${total_revenue:,.2f}")
 col3.metric("Total Profit", f"${total_profit:,.2f}")
 col4.metric("Total ROAS", f"{total_roas:.0%}")
 
-# === בחר Style ID להצגה ===
+# === סינון לפי Style ID ===
 st.subheader("Ad Set Control Panel")
 style_options = ["All"] + sorted(df["Style ID"].unique())
 selected_style = st.selectbox("Filter by Style ID", style_options)
@@ -88,19 +98,25 @@ selected_style = st.selectbox("Filter by Style ID", style_options)
 if selected_style != "All":
     df = df[df["Style ID"] == selected_style]
 
-# === כותרות הטבלה ===
+# === כותרות טבלה ===
 header_cols = st.columns([2, 1, 1, 1, 1, 1, 1.5, 1.5, 1])
 headers = ["Ad Name", "Spend", "Revenue", "Profit", "ROAS", "Current Budget", "New Budget", "New Status", "Action"]
+if date_str == today_str:
+    header_cols.insert(5, st.column(1))
+    headers.insert(5, "DBF")
 for col, title in zip(header_cols, headers):
     col.markdown(f"**{title}**")
 
-# === טבלת המודעות ===
+# === טבלת שורות ===
 for i, row in df.iterrows():
-    col1, col2, col3, col4, col5, col6, col7, col8, col9 = st.columns([2, 1, 1, 1, 1, 1, 1.5, 1.5, 1])
-    col1.markdown(row["Ad Name"])
-    col2.markdown(f"${row['Spend (USD)']:.2f}")
-    col3.markdown(f"${row['Revenue (USD)']:.2f}")
-    col4.markdown(f"${row['Profit (USD)']:.2f}")
+    cols = st.columns([2, 1, 1, 1, 1, 1, 1.5, 1.5, 1])
+    if date_str == today_str:
+        cols.insert(5, st.column(1))
+
+    cols[0].markdown(row["Ad Name"])
+    cols[1].markdown(f"${row['Spend (USD)']:.2f}")
+    cols[2].markdown(f"${row['Revenue (USD)']:.2f}")
+    cols[3].markdown(f"${row['Profit (USD)']:.2f}")
 
     roas = row['ROAS']
     if roas < 0.7:
@@ -113,29 +129,34 @@ for i, row in df.iterrows():
         roas_color = "#93C572"
     else:
         roas_color = "#019529"
-    col5.markdown(f"<div style='background-color:{roas_color}; padding:4px 8px; border-radius:4px; text-align:center; color:black'><b>{roas:.0%}</b></div>", unsafe_allow_html=True)
+    cols[4].markdown(f"<div style='background-color:{roas_color}; padding:4px 8px; border-radius:4px; text-align:center; color:black'><b>{roas:.0%}</b></div>", unsafe_allow_html=True)
 
-    col6.markdown(f"{row['Current Budget']:.1f}")
+    if date_str == today_str:
+        dbf_val = row.get("DBF", "")
+        cols[5].markdown(f"{dbf_val:.0%}" if pd.notnull(dbf_val) else "")
+        offset = 1
+    else:
+        offset = 0
+
+    cols[5+offset].markdown(f"{row['Current Budget']:.1f}")
 
     try:
         default_budget = float(row.get("New Budget", 0))
     except:
         default_budget = 0.0
 
-    new_budget = col7.number_input(" ", value=default_budget, step=1.0, key=f"budget_{i}", label_visibility="collapsed")
-    new_status = col8.selectbox(" ", options=["ACTIVE", "PAUSED"], index=0, key=f"status_{i}", label_visibility="collapsed")
+    new_budget = cols[6+offset].number_input(" ", value=default_budget, step=1.0, key=f"budget_{i}", label_visibility="collapsed")
+    new_status = cols[7+offset].selectbox(" ", options=["ACTIVE", "PAUSED"], index=0, key=f"status_{i}", label_visibility="collapsed")
 
-    if col9.button("Apply", key=f"apply_{i}"):
+    if cols[8+offset].button("Apply", key=f"apply_{i}"):
         adset_id = str(row.get("Ad Set ID", "")).strip().replace("'", "")
         try:
             adset = AdSet(adset_id)
             update_params = {}
-
             if new_budget > 0:
                 update_params["daily_budget"] = int(new_budget * 100)
             if new_status:
                 update_params["status"] = new_status
-
             if update_params:
                 adset.api_update(params=update_params)
                 st.success(f"✔️ Updated {row['Ad Name']}")
@@ -144,7 +165,7 @@ for i, row in df.iterrows():
         except Exception as e:
             st.error(f"❌ Failed to update {row['Ad Name']}: {e}")
 
-# === שורת סיכום לאחר הטבלה ===
+# === סיכום ל-Style ===
 if selected_style != "All":
     style_df = df
     style_spend = style_df["Spend (USD)"].sum()
@@ -174,5 +195,3 @@ if selected_style != "All":
         """,
         unsafe_allow_html=True
     )
-
-
