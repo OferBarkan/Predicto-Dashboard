@@ -50,6 +50,11 @@ if date_str == today_str:
     roas_yesterday = roas_df[roas_df["Date"] == yesterday_str][[
         "Ad Name", "Custom Channel ID", "Search Style ID", "ROAS"
     ]].rename(columns={"ROAS": "DBF"})
+
+    for col in ["Ad Name", "Custom Channel ID", "Search Style ID"]:
+        df[col] = df[col].astype(str).str.strip()
+        roas_yesterday[col] = roas_yesterday[col].astype(str).str.strip()
+
     df = df.merge(
         roas_yesterday,
         on=["Ad Name", "Custom Channel ID", "Search Style ID"],
