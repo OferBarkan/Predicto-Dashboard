@@ -127,7 +127,10 @@ for i, row in df.iterrows():
     cols[4].markdown(f"<div style='background-color:{roas_color}; padding:4px 8px; border-radius:4px; text-align:center; color:black'><b>{roas:.0%}</b></div>", unsafe_allow_html=True)
 
     dbf_val = row.get("DBF", None)
-    cols[5].markdown(f"{dbf_val:.0%}" if pd.notnull(dbf_val) else "")
+    if isinstance(dbf_val, (int, float)) and pd.notnull(dbf_val):
+        cols[5].markdown(f"{dbf_val:.0%}")
+    else:
+        cols[5].markdown("")
 
     cols[6].markdown(f"{row['Current Budget']:.1f}")
 
