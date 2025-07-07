@@ -61,7 +61,7 @@ else:
 # === חישובים ===
 df["Spend (USD)"] = pd.to_numeric(df["Spend (USD)"], errors="coerce").fillna(0)
 df["Revenue (USD)"] = pd.to_numeric(df["Revenue (USD)"], errors="coerce").fillna(0)
-df["ROAS"] = (df["Revenue (USD)"] / df["Spend (USD)"]).replace([float("inf"), -float("inf")], 0)
+df["ROAS"] = (df["Revenue (USD)"].astype(float) / df["Spend (USD)"].astype(float)).replace([float("inf"), -float("inf")], 0)
 df["Profit (USD)"] = df["Revenue (USD)"] - df["Spend (USD)"]
 
 man_df["Current Budget (ILS)"] = pd.to_numeric(man_df["Current Budget (ILS)"], errors="coerce").fillna(0)
@@ -99,22 +99,14 @@ if selected_style != "All":
     df = df[df["Style ID"] == selected_style]
 
 # === כותרות טבלה ===
-if date_str == today_str:
-    header_cols = st.columns([2, 1, 1, 1, 1, 1, 1.5, 1.5, 1])
-    headers = ["Ad Name", "Spend", "Revenue", "Profit", "ROAS", "DBF", "Current Budget", "New Budget", "New Status", "Action"]
-else:
-    header_cols = st.columns([2, 1, 1, 1, 1, 1.5, 1.5, 1])
-    headers = ["Ad Name", "Spend", "Revenue", "Profit", "ROAS", "Current Budget", "New Budget", "New Status", "Action"]
-
+header_cols = st.columns([2, 1, 1, 1, 1, 1, 1.5, 1.5, 1])
+headers = ["Ad Name", "Spend", "Revenue", "Profit", "ROAS", "DBF", "Current Budget", "New Budget", "New Status", "Action"]
 for col, title in zip(header_cols, headers):
     col.markdown(f"**{title}**")
 
 # === טבלת שורות ===
 for i, row in df.iterrows():
-    if date_str == today_str:
-        cols = st.columns([2, 1, 1, 1, 1, 1, 1.5, 1.5, 1])
-    else:
-        cols = st.columns([2, 1, 1, 1, 1, 1.5, 1.5, 1])
+    cols = st.columns([2, 1, 1, 1, 1, 1, 1.5, 1.5, 1])
 
     cols[0].markdown(row["Ad Name"])
     cols[1].markdown(f"${row['Spend (USD)']:.2f}")
@@ -134,23 +126,20 @@ for i, row in df.iterrows():
         roas_color = "#019529"
     cols[4].markdown(f"<div style='background-color:{roas_color}; padding:4px 8px; border-radius:4px; text-align:center; color:black'><b>{roas:.0%}</b></div>", unsafe_allow_html=True)
 
-    offset = 0
-    if date_str == today_str:
-        dbf_val = row.get("DBF", "")
-        cols[5].markdown(f"{dbf_val:.0%}" if pd.notnull(dbf_val) else "")
-        offset = 1
+    dbf_val = row.get("DBF", None)
+    cols[5].markdown(f"{dbf_val:.0%}" if pd.notnull(dbf_val) else "")
 
-    cols[5+offset].markdown(f"{row['Current Budget']:.1f}")
+    cols[6].markdown(f"{row['Current Budget']:.1f}")
 
     try:
         default_budget = float(row.get("New Budget", 0))
     except:
         default_budget = 0.0
 
-    new_budget = cols[6+offset].number_input(" ", value=default_budget, step=1.0, key=f"budget_{i}", label_visibility="collapsed")
-    new_status = cols[7+offset].selectbox(" ", options=["ACTIVE", "PAUSED"], index=0, key=f"status_{i}", label_visibility="collapsed")
+    new_budget = cols[7].number_input(" ", value=default_budget, step=1.0, key=f"budget_{i}", label_visibility="collapsed")
+    new_status = cols[8].selectbox(" ", options=["ACTIVE", "PAUSED"], index=0, key=f"status_{i}", label_visibility="collapsed")
 
-    if cols[8+offset].button("Apply", key=f"apply_{i}"):
+    if cols[8].button("Apply", key=f"apply_{i}"):
         adset_id = str(row.get("Ad Set ID", "")).strip().replace("'", "")
         try:
             adset = AdSet(adset_id)
