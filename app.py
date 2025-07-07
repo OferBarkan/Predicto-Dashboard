@@ -111,7 +111,7 @@ for col, title in zip(header_cols, headers):
 
 # === טבלת שורות ===
 for i, row in df.iterrows():
-    cols = st.columns([2, 1, 1, 1, 1, 1, 1.5, 1.5, 1])
+    cols = st.columns([2, 1, 1, 1, 1, 1, 1.2, 1.2, 1, 0.8])
 
     cols[0].markdown(row["Ad Name"])
     cols[1].markdown(f"${row['Spend (USD)']:.2f}")
@@ -141,7 +141,6 @@ for i, row in df.iterrows():
     except:
         cols[5].markdown("")
 
-
     cols[6].markdown(f"{row['Current Budget']:.1f}")
 
     try:
@@ -152,7 +151,7 @@ for i, row in df.iterrows():
     new_budget = cols[7].number_input(" ", value=default_budget, step=1.0, key=f"budget_{i}", label_visibility="collapsed")
     new_status = cols[8].selectbox(" ", options=["ACTIVE", "PAUSED"], index=0, key=f"status_{i}", label_visibility="collapsed")
 
-    if cols[8].button("Apply", key=f"apply_{i}"):
+    if cols[9].button("Apply", key=f"apply_{i}"):
         adset_id = str(row.get("Ad Set ID", "")).strip().replace("'", "")
         try:
             adset = AdSet(adset_id)
