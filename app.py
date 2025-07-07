@@ -51,30 +51,22 @@ if date_str == today_str:
         "Ad Name", "Custom Channel ID", "Search Style ID", "ROAS"
     ]].rename(columns={"ROAS": "DBF"})
 
-    # ניקוי מזהים לוודאות במיזוג
     for col in ["Ad Name", "Custom Channel ID", "Search Style ID"]:
         df[col] = df[col].astype(str).str.strip()
         roas_yesterday[col] = roas_yesterday[col].astype(str).str.strip()
 
-    # מיזוג לפי שלושת המזהים
     df = df.merge(
         roas_yesterday,
         on=["Ad Name", "Custom Channel ID", "Search Style ID"],
         how="left"
     )
-
-    # בדיקה כמה מודעות אכן קיבלו DBF
-    matched = df[df["DBF"].notnull()]
-    st.info(f"✅ Found {len(matched)} matching ads with DBF values")
-
 else:
     df["DBF"] = None
-
 
 # === חישובים ===
 df["Spend (USD)"] = pd.to_numeric(df["Spend (USD)"], errors="coerce").fillna(0)
 df["Revenue (USD)"] = pd.to_numeric(df["Revenue (USD)"], errors="coerce").fillna(0)
-df["ROAS"] = (df["Revenue (USD)"].astype(float) / df["Spend (USD)"].astype(float)).replace([float("inf"), -float("inf")], 0)
+df["ROAS"] = (df["Revenue (USD)"] / df["Spend (USD)"]).replace([float("inf"), -float("inf")], 0)
 df["Profit (USD)"] = df["Revenue (USD)"] - df["Spend (USD)"]
 
 man_df["Current Budget (ILS)"] = pd.to_numeric(man_df["Current Budget (ILS)"], errors="coerce").fillna(0)
@@ -126,7 +118,7 @@ for i, row in df.iterrows():
     cols[2].markdown(f"${row['Revenue (USD)']:.2f}")
     cols[3].markdown(f"${row['Profit (USD)']:.2f}")
 
-    roas = row['ROAS']
+    roas = row["ROAS"]
     if roas < 0.7:
         roas_color = "#B31B1B"
     elif roas < 0.95:
@@ -137,12 +129,15 @@ for i, row in df.iterrows():
         roas_color = "#93C572"
     else:
         roas_color = "#019529"
-    cols[4].markdown(f"<div style='background-color:{roas_color}; padding:4px 8px; border-radius:4px; text-align:center; color:black'><b>{roas:.0%}</b></div>", unsafe_allow_html=True)
+    cols[4].markdown(
+        f"<div style='background-color:{roas_color}; padding:4px 8px; border-radius:4px; text-align:center; color:black'><b>{roas:.0%}</b></div>",
+        unsafe_allow_html=True,
+    )
 
-    dbf_val = row.get("DBF", None)
-    if isinstance(dbf_val, (int, float)) and pd.notnull(dbf_val):
+    try:
+        dbf_val = float(row["DBF"])
         cols[5].markdown(f"{dbf_val:.0%}")
-    else:
+    except:
         cols[5].markdown("")
 
     cols[6].markdown(f"{row['Current Budget']:.1f}")
@@ -200,5 +195,5 @@ if selected_style != "All":
         <span style="background-color:{roas_color}; color:black; padding:2px 6px; border-radius:4px;"><b>{style_roas:.0%}</b></span>
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
