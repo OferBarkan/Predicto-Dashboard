@@ -135,10 +135,12 @@ for i, row in df.iterrows():
     )
 
     try:
-        dbf_val = float(row["DBF"])
+        dbf_val = str(row["DBF"]).replace("%", "").strip()
+        dbf_val = float(dbf_val) / 100
         cols[5].markdown(f"{dbf_val:.0%}")
     except:
         cols[5].markdown("")
+
 
     cols[6].markdown(f"{row['Current Budget']:.1f}")
 
