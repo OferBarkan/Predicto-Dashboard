@@ -68,6 +68,8 @@ df = df.merge(roas_prev2, on=["Ad Name", "Custom Channel ID", "Search Style ID"]
 # === חישובים ===
 df["Spend (USD)"] = pd.to_numeric(df["Spend (USD)"], errors="coerce").fillna(0)
 df["Revenue (USD)"] = pd.to_numeric(df["Revenue (USD)"], errors="coerce").fillna(0)
+df["ROAS"] = df["Revenue (USD)"] / df["Spend (USD)"]
+df["ROAS"] = df["ROAS"].replace([float("inf"), -float("inf")], 0).fillna(0)
 df["Profit (USD)"] = df["Revenue (USD)"] - df["Spend (USD)"]
 
 man_df["Current Budget (ILS)"] = pd.to_numeric(man_df["Current Budget (ILS)"], errors="coerce").fillna(0)
