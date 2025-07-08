@@ -33,14 +33,14 @@ man_df = pd.DataFrame(man_ws.get_all_records())
 st.set_page_config(page_title="Predicto Ads Dashboard", layout="wide")
 st.title("Predicto Ads Dashboard")
 
-# === תאריך נבחר ===
-yesterday = datetime.today() - timedelta(days=1)
-date = st.date_input("Select Date", yesterday)
+# === בחירת תאריך ===
+today = datetime.today()
+date = st.date_input("Select Date", today)
 date_str = date.strftime("%Y-%m-%d")
 prev_day_str = (date - timedelta(days=1)).strftime("%Y-%m-%d")
 prev2_day_str = (date - timedelta(days=2)).strftime("%Y-%m-%d")
 
-# === סינון ROAS לפי תאריך ===
+# === סינון ROAS לתאריך נבחר ===
 df = roas_df[roas_df["Date"] == date_str].copy()
 if df.empty:
     st.warning("No data available for the selected date.")
@@ -65,7 +65,6 @@ df["ROAS"] = df["Revenue (USD)"] / df["Spend (USD)"]
 df["ROAS"] = df["ROAS"].replace([float("inf"), -float("inf")], 0).fillna(0)
 df["Profit (USD)"] = df["Revenue (USD)"] - df["Spend (USD)"]
 
-# === ניקוי עמודות DBF
 def clean_roas_column(series):
     return (
         series.astype(str)
@@ -74,10 +73,11 @@ def clean_roas_column(series):
         .replace("", "0")
         .astype(float) / 100
     )
+
 df["DBF"] = clean_roas_column(df["DBF"])
 df["2DBF"] = clean_roas_column(df["2DBF"])
 
-# === תקציב וסטטוס מתוך Manual Control
+# === שליפת נתונים מהטאב Manual Control (ללא סינון תאריך)
 man_df["Current Budget (ILS)"] = pd.to_numeric(man_df["Current Budget (ILS)"], errors="coerce").fillna(0)
 df = df.merge(
     man_df[["Ad Name", "Ad Set ID", "Ad ID", "Ad Status", "Current Budget (ILS)", "New Budget", "New Status"]],
@@ -86,11 +86,11 @@ df = df.merge(
 )
 df["Current Budget"] = df["Current Budget (ILS)"]
 
-# === חילוץ סגנון
+# === סגנון
 df["Style ID"] = df["Ad Name"].str.split("-").str[0]
 df = df.sort_values(by=["Style ID", "Ad Name"])
 
-# === פונקציית עיצוב ROAS
+# === עיצוב ROAS
 def format_roas(val):
     try:
         if pd.isna(val): return ""
@@ -122,7 +122,7 @@ headers = ["Ad Name", "Spend", "Revenue", "Profit", "ROAS", "DBF", "2DBF", "Curr
 for col, title in zip(header_cols, headers):
     col.markdown(f"**{title}**")
 
-# === שורות
+# === שורות טבלה
 for i, row in df.iterrows():
     cols = st.columns([2, 1, 1, 1, 1, 1, 1, 1.2, 1.2, 1, 0.8, 1])
     cols[0].markdown(row["Ad Name"])
@@ -142,35 +142,33 @@ for i, row in df.iterrows():
     new_budget = cols[8].number_input(" ", value=default_budget, step=1.0, key=f"budget_{i}", label_visibility="collapsed")
     new_status = cols[9].selectbox(" ", options=["ACTIVE", "PAUSED"], index=0, key=f"status_{i}", label_visibility="collapsed")
 
-        if cols[10].button("Apply", key=f"apply_{i}"):
-            try:
-                update_budget_done = False
-                update_status_done = False
+    if cols[10].button("Apply", key=f"apply_{i}"):
+        try:
+            update_budget_done = False
+            update_status_done = False
 
-                adset_id = str(row.get("Ad Set ID", "")).strip().replace("'", "")
-                ad_id = str(row.get("Ad ID", "")).strip().replace("'", "")
+            adset_id = str(row.get("Ad Set ID", "")).strip().replace("'", "")
+            ad_id = str(row.get("Ad ID", "")).strip().replace("'", "")
 
-                # עדכון תקציב דרך Ad Set
-                if adset_id and new_budget > 0:
-                    adset = AdSet(adset_id)
-                    adset.api_update(params={"daily_budget": int(new_budget * 100)})
-                    update_budget_done = True
+            if adset_id and new_budget > 0:
+                adset = AdSet(adset_id)
+                adset.api_update(params={"daily_budget": int(new_budget * 100)})
+                update_budget_done = True
 
-                # עדכון סטטוס דרך Ad
-                if ad_id:
-                    ad = Ad(ad_id)
-                    ad.api_update(params={"status": new_status})
-                    update_status_done = True
-                else:
-                    st.warning(f"⚠️ Missing Ad ID for {row['Ad Name']}, cannot update.")
+            if ad_id:
+                ad = Ad(ad_id)
+                ad.api_update(params={"status": new_status})
+                update_status_done = True
+            else:
+                st.warning(f"⚠️ Missing Ad ID for {row['Ad Name']}, cannot update.")
 
-                if update_budget_done or update_status_done:
-                    st.success(f"✔️ Updated {row['Ad Name']}")
-                else:
-                    st.warning(f"⚠️ No valid updates for {row['Ad Name']}")
+            if update_budget_done or update_status_done:
+                st.success(f"✔️ Updated {row['Ad Name']}")
+            else:
+                st.warning(f"⚠️ No valid updates for {row['Ad Name']}")
 
-            except Exception as e:
-                st.error(f"❌ Failed to update {row['Ad Name']}: {e}")
+        except Exception as e:
+            st.error(f"❌ Failed to update {row['Ad Name']}: {e}")
 
     status = str(row.get("Ad Status", "")).upper().strip()
     color = "#D4EDDA" if status == "ACTIVE" else "#5c5b5b" if status == "PAUSED" else "#666666"
