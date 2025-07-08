@@ -151,17 +151,25 @@ for i, row in df.iterrows():
     if cols[10].button("Apply", key=f"apply_{i}"):
         try:
             ad_id = str(row.get("Ad ID", "")).strip().replace("'", "")
+            if not ad_id:
+                st.warning(f"⚠️ Missing Ad ID for {row['Ad Name']}, cannot update.")
+                continue  # דלג על עדכון אם אין Ad ID תקף
+
             ad_obj = Ad(fbid=ad_id)
             update_params = {"status": new_status} if new_status else {}
+
             if new_budget > 0:
                 adset_id = str(row.get("Ad Set ID", "")).strip().replace("'", "")
-                adset = AdSet(adset_id)
-                adset.api_update(params={"daily_budget": int(new_budget * 100)})
+                if adset_id:
+                    adset = AdSet(adset_id)
+                    adset.api_update(params={"daily_budget": int(new_budget * 100)})
+
             if update_params:
                 ad_obj.api_update(params=update_params)
                 st.success(f"✔️ Updated {row['Ad Name']}")
         except Exception as e:
             st.error(f"❌ Failed to update {row['Ad Name']}: {e}")
+
 
     status = str(row.get("Ad Status", "")).upper().strip()
     color = "#D4EDDA" if status == "ACTIVE" else "#5c5b5b" if status == "PAUSED" else "#666666" if status == "DELETED" else "#FFFFFF"
