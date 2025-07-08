@@ -68,7 +68,6 @@ df = df.merge(roas_prev2, on=["Ad Name", "Custom Channel ID", "Search Style ID"]
 # === חישובים ===
 df["Spend (USD)"] = pd.to_numeric(df["Spend (USD)"], errors="coerce").fillna(0)
 df["Revenue (USD)"] = pd.to_numeric(df["Revenue (USD)"], errors="coerce").fillna(0)
-df["ROAS"] = (df["Revenue (USD)"] / df["Spend (USD)"]).replace([float("inf"), -float("inf")], 0)
 df["Profit (USD)"] = df["Revenue (USD)"] - df["Spend (USD)"]
 
 man_df["Current Budget (ILS)"] = pd.to_numeric(man_df["Current Budget (ILS)"], errors="coerce").fillna(0)
@@ -126,7 +125,12 @@ for i, row in df.iterrows():
     cols[1].markdown(f"${row['Spend (USD)']:.2f}")
     cols[2].markdown(f"${row['Revenue (USD)']:.2f}")
     cols[3].markdown(f"${row['Profit (USD)']:.2f}")
-    cols[4].markdown(format_roas(row["ROAS"]), unsafe_allow_html=True)
+    try:
+        roas_val = float(row["Revenue (USD)"]) / float(row["Spend (USD)"]) if float(row["Spend (USD)"]) else 0
+    except:
+        roas_val = 0
+    cols[4].markdown(format_roas(roas_val), unsafe_allow_html=True)
+
     cols[5].markdown(format_roas(row.get("DBF")), unsafe_allow_html=True)
     cols[6].markdown(format_roas(row.get("2DBF")), unsafe_allow_html=True)
     cols[7].markdown(f"{row['Current Budget']:.1f}")
