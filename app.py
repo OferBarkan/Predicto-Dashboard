@@ -125,8 +125,12 @@ for i, row in df.iterrows():
     cols[1].markdown(f"${row['Spend (USD)']:.2f}")
     cols[2].markdown(f"${row['Revenue (USD)']:.2f}")
     cols[3].markdown(f"${row['Profit (USD)']:.2f}")
+
+    # חישוב ROAS ישירות מה spend ו-revenue
     try:
-        roas_val = float(row["Revenue (USD)"]) / float(row["Spend (USD)"]) if float(row["Spend (USD)"]) else 0
+        spend = float(row.get("Spend (USD)", 0))
+        revenue = float(row.get("Revenue (USD)", 0))
+        roas_val = revenue / spend if spend > 0 else 0
     except:
         roas_val = 0
     cols[4].markdown(format_roas(roas_val), unsafe_allow_html=True)
