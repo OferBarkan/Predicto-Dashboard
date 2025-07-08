@@ -69,6 +69,7 @@ df["Revenue (USD)"] = pd.to_numeric(df["Revenue (USD)"], errors="coerce").fillna
 df["ROAS"] = df["Revenue (USD)"] / df["Spend (USD)"]
 df["ROAS"] = df["ROAS"].replace([float("inf"), -float("inf")], 0).fillna(0)
 df["Profit (USD)"] = df["Revenue (USD)"] - df["Spend (USD)"]
+
 def clean_roas_column(series):
     return (
         series.astype(str)
@@ -81,11 +82,10 @@ def clean_roas_column(series):
 df["DBF"] = clean_roas_column(df["DBF"])
 df["2DBF"] = clean_roas_column(df["2DBF"])
 
-
-# === תקציב ===
+# === תקציב ועדכון דרך Manual Control עם AID ===
 man_df["Current Budget (ILS)"] = pd.to_numeric(man_df["Current Budget (ILS)"], errors="coerce").fillna(0)
 df = df.merge(
-    man_df[["Ad Name", "Ad Set ID", "Ad Status", "Current Budget (ILS)", "New Budget", "New Status"]],
+    man_df[["Ad Name", "Ad Set ID", "Ad Status", "Ad ID", "Current Budget (ILS)", "New Budget", "New Status"]],
     on="Ad Name",
     how="left"
 )
@@ -103,23 +103,18 @@ def format_roas(val):
         val = float(val)
     except:
         return ""
-    
     color = "#B31B1B" if val < 0.7 else "#FDC1C5" if val < 0.95 else "#FBEEAC" if val < 1.10 else "#93C572" if val < 1.4 else "#019529"
     return f"<div style='background-color:{color}; padding:4px 8px; border-radius:4px; text-align:center; color:black'><b>{val:.0%}</b></div>"
-
 
 # === סיכום כולל ===
 st.markdown("---")
 st.markdown("### Daily Summary")
 col1, col2, col3, col4 = st.columns(4)
-total_spend = df["Spend (USD)"].sum()
-total_revenue = df["Revenue (USD)"].sum()
-total_profit = df["Profit (USD)"].sum()
-total_roas = total_revenue / total_spend if total_spend else 0
-col1.metric("Total Spend", f"${total_spend:,.2f}")
-col2.metric("Total Revenue", f"${total_revenue:,.2f}")
-col3.metric("Total Profit", f"${total_profit:,.2f}")
-col4.metric("Total ROAS", f"{total_roas:.0%}")
+col1.metric("Total Spend", f"${df['Spend (USD)'].sum():,.2f}")
+col2.metric("Total Revenue", f"${df['Revenue (USD)'].sum():,.2f}")
+col3.metric("Total Profit", f"${df['Profit (USD)'].sum():,.2f}")
+roas_sum = df["Revenue (USD)"].sum() / df["Spend (USD)"].sum() if df["Spend (USD)"].sum() > 0 else 0
+col4.metric("Total ROAS", f"{roas_sum:.0%}")
 
 # === סינון לפי Style ===
 st.subheader("Ad Set Control Panel")
@@ -155,8 +150,8 @@ for i, row in df.iterrows():
 
     if cols[10].button("Apply", key=f"apply_{i}"):
         try:
-            ad_name = row["Ad Name"]
-            ad_obj = Ad(fbid=ad_name)
+            ad_id = str(row.get("Ad ID", "")).strip().replace("'", "")
+            ad_obj = Ad(fbid=ad_id)
             update_params = {"status": new_status} if new_status else {}
             if new_budget > 0:
                 adset_id = str(row.get("Ad Set ID", "")).strip().replace("'", "")
@@ -164,7 +159,7 @@ for i, row in df.iterrows():
                 adset.api_update(params={"daily_budget": int(new_budget * 100)})
             if update_params:
                 ad_obj.api_update(params=update_params)
-                st.success(f"✔️ Updated {ad_name}")
+                st.success(f"✔️ Updated {row['Ad Name']}")
         except Exception as e:
             st.error(f"❌ Failed to update {row['Ad Name']}: {e}")
 
