@@ -128,7 +128,11 @@ for i, row in df.iterrows():
         return f"<div style='background-color:{color}; padding:4px 8px; border-radius:4px; text-align:center; color:black'><b>{val:.0%}</b></div>"
 
     cols[4].markdown(format_metric(row.get("ROAS")), unsafe_allow_html=True)
-    cols[5].markdown(f"{row['DBF']:.0%}" if pd.notnull(row["DBF"]) else "")
+    try:
+        val = float(row["DBF"])
+        cols[5].markdown(f"{val:.0%}") 
+    except (ValueError, TypeError):
+        cols[5].markdown("")
     cols[6].markdown(f"{row['2DBF']:.0%}" if pd.notnull(row["2DBF"]) else "")
 
     cols[7].markdown(f"{row['Current Budget']:.1f}")
