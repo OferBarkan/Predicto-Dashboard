@@ -28,6 +28,7 @@ roas_ws = sheet.worksheet("ROAS")
 man_ws = sheet.worksheet("Manual Control")
 roas_df = pd.DataFrame(roas_ws.get_all_records())
 man_df = pd.DataFrame(man_ws.get_all_records())
+man_df["Ad ID"] = man_df["Ad ID"].astype(str).str.strip()
 
 # === הגדרות דשבורד ===
 st.set_page_config(page_title="Predicto Ads Dashboard", layout="wide")
@@ -82,10 +83,10 @@ def clean_roas_column(series):
 df["DBF"] = clean_roas_column(df["DBF"])
 df["2DBF"] = clean_roas_column(df["2DBF"])
 
-# === תקציב ועדכון דרך Manual Control עם AID ===
+# === תקציב ומיזוג נתונים עם Manual ===
 man_df["Current Budget (ILS)"] = pd.to_numeric(man_df["Current Budget (ILS)"], errors="coerce").fillna(0)
 df = df.merge(
-    man_df[["Ad Name", "Ad Set ID", "Ad Status", "Ad ID", "Current Budget (ILS)", "New Budget", "New Status"]],
+    man_df[["Ad Name", "Ad ID", "Ad Set ID", "Ad Status", "Current Budget (ILS)", "New Budget", "New Status"]],
     on="Ad Name",
     how="left"
 )
@@ -110,11 +111,14 @@ def format_roas(val):
 st.markdown("---")
 st.markdown("### Daily Summary")
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("Total Spend", f"${df['Spend (USD)'].sum():,.2f}")
-col2.metric("Total Revenue", f"${df['Revenue (USD)'].sum():,.2f}")
-col3.metric("Total Profit", f"${df['Profit (USD)'].sum():,.2f}")
-roas_sum = df["Revenue (USD)"].sum() / df["Spend (USD)"].sum() if df["Spend (USD)"].sum() > 0 else 0
-col4.metric("Total ROAS", f"{roas_sum:.0%}")
+total_spend = df["Spend (USD)"].sum()
+total_revenue = df["Revenue (USD)"].sum()
+total_profit = df["Profit (USD)"].sum()
+total_roas = total_revenue / total_spend if total_spend else 0
+col1.metric("Total Spend", f"${total_spend:,.2f}")
+col2.metric("Total Revenue", f"${total_revenue:,.2f}")
+col3.metric("Total Profit", f"${total_profit:,.2f}")
+col4.metric("Total ROAS", f"{total_roas:.0%}")
 
 # === סינון לפי Style ===
 st.subheader("Ad Set Control Panel")
@@ -132,6 +136,7 @@ for col, title in zip(header_cols, headers):
 # === שורות טבלה ===
 for i, row in df.iterrows():
     cols = st.columns([2, 1, 1, 1, 1, 1, 1, 1.2, 1.2, 1, 0.8, 1])
+
     cols[0].markdown(row["Ad Name"])
     cols[1].markdown(f"${row['Spend (USD)']:.2f}")
     cols[2].markdown(f"${row['Revenue (USD)']:.2f}")
@@ -149,27 +154,22 @@ for i, row in df.iterrows():
     new_status = cols[9].selectbox(" ", options=["ACTIVE", "PAUSED"], index=0, key=f"status_{i}", label_visibility="collapsed")
 
     if cols[10].button("Apply", key=f"apply_{i}"):
-        try:
-            ad_id = str(row.get("Ad ID", "")).strip().replace("'", "")
-            if not ad_id:
-                st.warning(f"⚠️ Missing Ad ID for {row['Ad Name']}, cannot update.")
-                continue  # דלג על עדכון אם אין Ad ID תקף
-
-            ad_obj = Ad(fbid=ad_id)
-            update_params = {"status": new_status} if new_status else {}
-
-            if new_budget > 0:
-                adset_id = str(row.get("Ad Set ID", "")).strip().replace("'", "")
-                if adset_id:
+        ad_id = row.get("Ad ID", "").strip()
+        if not ad_id:
+            st.warning(f"\u26a0\ufe0f Missing Ad ID for {row['Ad Name']}, cannot update.")
+        else:
+            try:
+                ad_obj = Ad(fbid=ad_id)
+                update_params = {"status": new_status} if new_status else {}
+                if new_budget > 0:
+                    adset_id = str(row.get("Ad Set ID", "")).strip().replace("'", "")
                     adset = AdSet(adset_id)
                     adset.api_update(params={"daily_budget": int(new_budget * 100)})
-
-            if update_params:
-                ad_obj.api_update(params=update_params)
-                st.success(f"✔️ Updated {row['Ad Name']}")
-        except Exception as e:
-            st.error(f"❌ Failed to update {row['Ad Name']}: {e}")
-
+                if update_params:
+                    ad_obj.api_update(params=update_params)
+                    st.success(f"\u2714\ufe0f Updated {row['Ad Name']}")
+            except Exception as e:
+                st.error(f"\u274c Failed to update {row['Ad Name']}: {e}")
 
     status = str(row.get("Ad Status", "")).upper().strip()
     color = "#D4EDDA" if status == "ACTIVE" else "#5c5b5b" if status == "PAUSED" else "#666666" if status == "DELETED" else "#FFFFFF"
