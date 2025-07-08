@@ -166,7 +166,21 @@ for i, row in df.iterrows():
         except Exception as e:
             st.error(f"❌ Failed to update {row['Ad Name']}: {e}")
 
-    cols[10].markdown(row.get("Ad Status", ""))
+    status = str(row.get("Ad Status", "")).upper().strip()
+    if status == "ACTIVE":
+        color = "#D4EDDA"
+    elif status == "PAUSED":
+        color = "#E0E0E0"
+    elif status == "DELETED":
+        color = "#666666"
+    else:
+        color = "#FFFFFF"
+
+    cols[10].markdown(
+        f"<div style='background-color:{color}; padding:4px 8px; border-radius:4px; text-align:center; color:black'><b>{status}</b></div>",
+        unsafe_allow_html=True
+    )
+
 
 # === סיכום לפי Style ===
 if selected_style != "All":
