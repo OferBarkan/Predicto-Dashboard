@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from google.oauth2.service_account import Credentials
 from facebook_business.api import FacebookAdsApi
 from facebook_business.adobjects.adset import AdSet
+from facebook_business.adobjects.ad import Ad
 import json
 
 # === התחברות ל-Google Sheets דרך secrets ===
@@ -43,10 +44,9 @@ if df.empty:
     st.warning("No data available for the selected date.")
     st.stop()
 
-# === הצמדת נתוני DBF ו-2DBF ===
+# === הצמדת נתוני יום קודם (DBF) ו-2DBF ===
 prev_day = datetime.strptime(date_str, "%Y-%m-%d") - timedelta(days=1)
 prev_day_str = prev_day.strftime("%Y-%m-%d")
-
 prev2_day = datetime.strptime(date_str, "%Y-%m-%d") - timedelta(days=2)
 prev2_day_str = prev2_day.strftime("%Y-%m-%d")
 
@@ -121,29 +121,15 @@ for i, row in df.iterrows():
     cols[2].markdown(f"${row['Revenue (USD)']:.2f}")
     cols[3].markdown(f"${row['Profit (USD)']:.2f}")
 
-    roas = row["ROAS"]
-    if roas < 0.7:
-        roas_color = "#B31B1B"
-    elif roas < 0.95:
-        roas_color = "#FDC1C5"
-    elif roas < 1.10:
-        roas_color = "#FBEEAC"
-    elif roas < 1.40:
-        roas_color = "#93C572"
-    else:
-        roas_color = "#019529"
-    cols[4].markdown(
-        f"<div style='background-color:{roas_color}; padding:4px 8px; border-radius:4px; text-align:center; color:black'><b>{roas:.0%}</b></div>",
-        unsafe_allow_html=True,
-    )
+    def format_metric(val):
+        if pd.isnull(val):
+            return ""
+        color = "#B31B1B" if val < 0.7 else "#FDC1C5" if val < 0.95 else "#FBEEAC" if val < 1.10 else "#93C572" if val < 1.4 else "#019529"
+        return f"<div style='background-color:{color}; padding:4px 8px; border-radius:4px; text-align:center; color:black'><b>{val:.0%}</b></div>"
 
-    for j, field in enumerate(["DBF", "2DBF"], start=5):
-        try:
-            val = str(row[field]).replace("%", "").strip()
-            val = float(val) / 100
-            cols[j].markdown(f"{val:.0%}")
-        except:
-            cols[j].markdown("")
+    cols[4].markdown(format_metric(row.get("ROAS")), unsafe_allow_html=True)
+    cols[5].markdown(f"{row['DBF']:.0%}" if pd.notnull(row["DBF"]) else "")
+    cols[6].markdown(f"{row['2DBF']:.0%}" if pd.notnull(row["2DBF"]) else "")
 
     cols[7].markdown(f"{row['Current Budget']:.1f}")
 
@@ -156,19 +142,17 @@ for i, row in df.iterrows():
     new_status = cols[9].selectbox(" ", options=["ACTIVE", "PAUSED"], index=0, key=f"status_{i}", label_visibility="collapsed")
 
     if cols[10].button("Apply", key=f"apply_{i}"):
+        ad_id = str(row.get("Ad Name", "")).strip()
         adset_id = str(row.get("Ad Set ID", "")).strip().replace("'", "")
         try:
-            adset = AdSet(adset_id)
-            update_params = {}
-            if new_budget > 0:
-                update_params["daily_budget"] = int(new_budget * 100)
-            if new_status:
-                update_params["status"] = new_status
-            if update_params:
-                adset.api_update(params=update_params)
-                st.success(f"✔️ Updated {row['Ad Name']}")
-            else:
-                st.warning(f"⚠️ No valid updates provided for {row['Ad Name']}")
+            if ad_id:
+                ad = Ad(ad_id)
+                update_params = {"status": new_status} if new_status else {}
+                ad.api_update(params=update_params)
+            if new_budget > 0 and adset_id:
+                adset = AdSet(adset_id)
+                adset.api_update(params={"daily_budget": int(new_budget * 100)})
+            st.success(f"✔️ Updated {row['Ad Name']}")
         except Exception as e:
             st.error(f"❌ Failed to update {row['Ad Name']}: {e}")
 
@@ -176,7 +160,7 @@ for i, row in df.iterrows():
     if status == "ACTIVE":
         color = "#D4EDDA"
     elif status == "PAUSED":
-        color = "#E0E0E0"
+        color = "#5c5b5b"
     elif status == "DELETED":
         color = "#666666"
     else:
