@@ -69,8 +69,18 @@ df["Revenue (USD)"] = pd.to_numeric(df["Revenue (USD)"], errors="coerce").fillna
 df["ROAS"] = df["Revenue (USD)"] / df["Spend (USD)"]
 df["ROAS"] = df["ROAS"].replace([float("inf"), -float("inf")], 0).fillna(0)
 df["Profit (USD)"] = df["Revenue (USD)"] - df["Spend (USD)"]
-df["DBF"] = pd.to_numeric(df["DBF"], errors="coerce").replace([float("inf"), -float("inf")], 0).fillna(0)
-df["2DBF"] = pd.to_numeric(df["2DBF"], errors="coerce").replace([float("inf"), -float("inf")], 0).fillna(0)
+def clean_roas_column(series):
+    return (
+        series.astype(str)
+        .str.replace("%", "", regex=False)
+        .str.strip()
+        .replace("", "0")
+        .astype(float) / 100
+    )
+
+df["DBF"] = clean_roas_column(df["DBF"])
+df["2DBF"] = clean_roas_column(df["2DBF"])
+
 
 # === תקציב ===
 man_df["Current Budget (ILS)"] = pd.to_numeric(man_df["Current Budget (ILS)"], errors="coerce").fillna(0)
