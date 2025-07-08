@@ -138,7 +138,10 @@ for i, row in df.iterrows():
     cols[6].markdown(format_roas(row["2DBF"]), unsafe_allow_html=True)
     cols[7].markdown(f"{row['Current Budget']:.1f}")
 
-    default_budget = float(row.get("New Budget", 0)) if pd.notna(row.get("New Budget", 0)) else 0.0
+    try:
+        default_budget = float(row.get("New Budget", 0))
+    except:
+        default_budget = 0.0
     new_budget = cols[8].number_input(" ", value=default_budget, step=1.0, key=f"budget_{i}", label_visibility="collapsed")
     new_status = cols[9].selectbox(" ", options=["ACTIVE", "PAUSED"], index=0, key=f"status_{i}", label_visibility="collapsed")
 
