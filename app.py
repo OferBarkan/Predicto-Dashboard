@@ -114,9 +114,17 @@ for i, row in df.iterrows():
     cols[3].markdown(f"${row['Profit (USD)']:.2f}")
 
     def format_metric(val):
-        if pd.isnull(val): return ""
+        try:
+            val = float(str(val).replace("%", "").strip())
+            val /= 100  # להפוך ליחס (0.85 במקום 85%)
+        except:
+            return ""
+    
+        # הגדרת צבע לפי ערכים
         color = "#B31B1B" if val < 0.7 else "#FDC1C5" if val < 0.95 else "#FBEEAC" if val < 1.10 else "#93C572" if val < 1.4 else "#019529"
+    
         return f"<div style='background-color:{color}; padding:4px 8px; border-radius:4px; text-align:center; color:black'><b>{val:.0%}</b></div>"
+
 
     cols[4].markdown(format_metric(row["ROAS"]), unsafe_allow_html=True)
     cols[5].markdown(format_metric(row.get("DBF")), unsafe_allow_html=True)
