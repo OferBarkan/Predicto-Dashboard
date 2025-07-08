@@ -36,7 +36,6 @@ st.title("Predicto Ads Dashboard")
 yesterday = datetime.today() - timedelta(days=1)
 date = st.date_input("Select Date", yesterday)
 date_str = date.strftime("%Y-%m-%d")
-today_str = datetime.today().strftime("%Y-%m-%d")
 
 # === סינון נתונים לפי תאריך נבחר ===
 df = roas_df[roas_df["Date"] == date_str].copy()
@@ -44,7 +43,7 @@ if df.empty:
     st.warning("No data available for the selected date.")
     st.stop()
 
-# === הצמדת נתוני יום קודם (DBF) לכל תאריך נבחר ===
+# === הצמדת נתוני יום קודם (DBF) ===
 prev_day = datetime.strptime(date_str, "%Y-%m-%d") - timedelta(days=1)
 prev_day_str = prev_day.strftime("%Y-%m-%d")
 
@@ -70,7 +69,7 @@ df["Profit (USD)"] = df["Revenue (USD)"] - df["Spend (USD)"]
 
 man_df["Current Budget (ILS)"] = pd.to_numeric(man_df["Current Budget (ILS)"], errors="coerce").fillna(0)
 df = df.merge(
-    man_df[["Ad Name", "Ad Set ID", "Current Budget (ILS)", "New Budget", "New Status"]],
+    man_df[["Ad Name", "Ad Set ID", "Ad Status", "Current Budget (ILS)", "New Budget", "New Status"]],
     on="Ad Name",
     how="left"
 )
@@ -103,14 +102,14 @@ if selected_style != "All":
     df = df[df["Style ID"] == selected_style]
 
 # === כותרות טבלה ===
-header_cols = st.columns([2, 1, 1, 1, 1, 1, 1.5, 1.5, 1])
-headers = ["Ad Name", "Spend", "Revenue", "Profit", "ROAS", "DBF", "Current Budget", "New Budget", "New Status", "Action"]
+header_cols = st.columns([2, 1, 1, 1, 1, 1, 1.2, 1.2, 1, 0.8, 1])
+headers = ["Ad Name", "Spend", "Revenue", "Profit", "ROAS", "DBF", "Current Budget", "New Budget", "New Status", "Action", "Ad Status"]
 for col, title in zip(header_cols, headers):
     col.markdown(f"**{title}**")
 
-# === טבלת שורות ===
+# === שורות הטבלה ===
 for i, row in df.iterrows():
-    cols = st.columns([2, 1, 1, 1, 1, 1, 1.2, 1.2, 1, 0.8])
+    cols = st.columns([2, 1, 1, 1, 1, 1, 1.2, 1.2, 1, 0.8, 1])
 
     cols[0].markdown(row["Ad Name"])
     cols[1].markdown(f"${row['Spend (USD)']:.2f}")
@@ -167,7 +166,9 @@ for i, row in df.iterrows():
         except Exception as e:
             st.error(f"❌ Failed to update {row['Ad Name']}: {e}")
 
-# === סיכום ל-Style ===
+    cols[10].markdown(row.get("Ad Status", ""))
+
+# === סיכום לפי Style ===
 if selected_style != "All":
     style_df = df
     style_spend = style_df["Spend (USD)"].sum()
