@@ -48,10 +48,10 @@ if df.empty:
 
 # === הצמדת DBF ===
 roas_prev = roas_df[roas_df["Date"] == prev_day_str][[
-    "Ad Name", "Custom Channel ID", "Search Style ID", "ROAS"\]].rename(columns={"ROAS": "DBF"})
+    "Ad Name", "Custom Channel ID", "Search Style ID", "ROAS"]].rename(columns={"ROAS": "DBF"})
 
 roas_prev2 = roas_df[roas_df["Date"] == prev2_day_str][[
-    "Ad Name", "Custom Channel ID", "Search Style ID", "ROAS"\]].rename(columns={"ROAS": "2DBF"})
+    "Ad Name", "Custom Channel ID", "Search Style ID", "ROAS"]].rename(columns={"ROAS": "2DBF"})
 
 for col in ["Ad Name", "Custom Channel ID", "Search Style ID"]:
     df[col] = df[col].astype(str).str.strip()
