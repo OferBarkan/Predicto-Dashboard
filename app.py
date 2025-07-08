@@ -98,9 +98,13 @@ df = df.sort_values(by=["Style ID", "Ad Name"])
 # === פונקציית עיצוב ROAS ===
 def format_roas(val):
     try:
-        val = float(val)
+        val = float(str(val).replace("%", "").strip())
+        if pd.isna(val):
+            return ""  # ללא רקע אם הערך NaN
+        val /= 100
     except:
-        return ""
+        return ""  # ללא רקע אם לא ניתן להמיר למספר
+
     color = "#B31B1B" if val < 0.7 else "#FDC1C5" if val < 0.95 else "#FBEEAC" if val < 1.10 else "#93C572" if val < 1.4 else "#019529"
     return f"<div style='background-color:{color}; padding:4px 8px; border-radius:4px; text-align:center; color:black'><b>{val:.0%}</b></div>"
 
