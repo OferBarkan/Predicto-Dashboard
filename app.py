@@ -48,12 +48,10 @@ if df.empty:
 
 # === הצמדת DBF ===
 roas_prev = roas_df[roas_df["Date"] == prev_day_str][[
-    "Ad Name", "Custom Channel ID", "Search Style ID", "ROAS"
-]].rename(columns={"ROAS": "DBF"})
+    "Ad Name", "Custom Channel ID", "Search Style ID", "ROAS"\]].rename(columns={"ROAS": "DBF"})
 
 roas_prev2 = roas_df[roas_df["Date"] == prev2_day_str][[
-    "Ad Name", "Custom Channel ID", "Search Style ID", "ROAS"
-]].rename(columns={"ROAS": "2DBF"})
+    "Ad Name", "Custom Channel ID", "Search Style ID", "ROAS"\]].rename(columns={"ROAS": "2DBF"})
 
 for col in ["Ad Name", "Custom Channel ID", "Search Style ID"]:
     df[col] = df[col].astype(str).str.strip()
@@ -81,6 +79,9 @@ def clean_roas_column(series):
 
 df["DBF"] = clean_roas_column(df["DBF"])
 df["2DBF"] = clean_roas_column(df["2DBF"])
+
+# === סינון גם ל-man_df לפי תאריך נבחר ===
+man_df = man_df[man_df["Date"] == date_str].copy()
 
 # === תקציב ===
 man_df["Current Budget (ILS)"] = pd.to_numeric(man_df["Current Budget (ILS)"], errors="coerce").fillna(0)
