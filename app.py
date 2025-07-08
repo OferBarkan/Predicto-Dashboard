@@ -44,24 +44,23 @@ if df.empty:
     st.warning("No data available for the selected date.")
     st.stop()
 
-# === הצמדת נתוני אתמול (ROAS בלבד) במקרה ונבחר תאריך של היום ===
-if date_str == today_str:
-    yesterday_str = (datetime.today() - timedelta(days=1)).strftime("%Y-%m-%d")
-    roas_yesterday = roas_df[roas_df["Date"] == yesterday_str][[
-        "Ad Name", "Custom Channel ID", "Search Style ID", "ROAS"
-    ]].rename(columns={"ROAS": "DBF"})
+# === הצמדת נתוני יום קודם (DBF) לכל תאריך נבחר ===
+prev_day = datetime.strptime(date_str, "%Y-%m-%d") - timedelta(days=1)
+prev_day_str = prev_day.strftime("%Y-%m-%d")
 
-    for col in ["Ad Name", "Custom Channel ID", "Search Style ID"]:
-        df[col] = df[col].astype(str).str.strip()
-        roas_yesterday[col] = roas_yesterday[col].astype(str).str.strip()
+roas_prev = roas_df[roas_df["Date"] == prev_day_str][[
+    "Ad Name", "Custom Channel ID", "Search Style ID", "ROAS"
+]].rename(columns={"ROAS": "DBF"})
 
-    df = df.merge(
-        roas_yesterday,
-        on=["Ad Name", "Custom Channel ID", "Search Style ID"],
-        how="left"
-    )
-else:
-    df["DBF"] = None
+for col in ["Ad Name", "Custom Channel ID", "Search Style ID"]:
+    df[col] = df[col].astype(str).str.strip()
+    roas_prev[col] = roas_prev[col].astype(str).str.strip()
+
+df = df.merge(
+    roas_prev,
+    on=["Ad Name", "Custom Channel ID", "Search Style ID"],
+    how="left"
+)
 
 # === חישובים ===
 df["Spend (USD)"] = pd.to_numeric(df["Spend (USD)"], errors="coerce").fillna(0)
