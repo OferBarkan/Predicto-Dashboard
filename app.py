@@ -44,19 +44,27 @@ if df.empty:
     st.stop()
 
 # === הצמדת נתוני DBF ו-2DBF ===
-for offset, label in [(1, "DBF"), (2, "2DBF")]:
-    prev_day = datetime.strptime(date_str, "%Y-%m-%d") - timedelta(days=offset)
-    prev_day_str = prev_day.strftime("%Y-%m-%d")
+prev_day = datetime.strptime(date_str, "%Y-%m-%d") - timedelta(days=1)
+prev_day_str = prev_day.strftime("%Y-%m-%d")
 
-    roas_prev = roas_df[roas_df["Date"] == prev_day_str][[
-        "Ad Name", "Custom Channel ID", "Search Style ID", "ROAS"
-    ]].rename(columns={"ROAS": label})
+prev2_day = datetime.strptime(date_str, "%Y-%m-%d") - timedelta(days=2)
+prev2_day_str = prev2_day.strftime("%Y-%m-%d")
 
-    for col in ["Ad Name", "Custom Channel ID", "Search Style ID"]:
-        df[col] = df[col].astype(str).str.strip()
-        roas_prev[col] = roas_prev[col].astype(str).str.strip()
+roas_prev = roas_df[roas_df["Date"] == prev_day_str][[
+    "Ad Name", "Custom Channel ID", "Search Style ID", "ROAS"
+]].rename(columns={"ROAS": "DBF"})
 
-    df = df.merge(roas_prev, on=["Ad Name", "Custom Channel ID", "Search Style ID"], how="left")
+roas_prev2 = roas_df[roas_df["Date"] == prev2_day_str][[
+    "Ad Name", "Custom Channel ID", "Search Style ID", "ROAS"
+]].rename(columns={"ROAS": "2DBF"})
+
+for col in ["Ad Name", "Custom Channel ID", "Search Style ID"]:
+    df[col] = df[col].astype(str).str.strip()
+    roas_prev[col] = roas_prev[col].astype(str).str.strip()
+    roas_prev2[col] = roas_prev2[col].astype(str).str.strip()
+
+df = df.merge(roas_prev, on=["Ad Name", "Custom Channel ID", "Search Style ID"], how="left")
+df = df.merge(roas_prev2, on=["Ad Name", "Custom Channel ID", "Search Style ID"], how="left")
 
 # === חישובים ===
 df["Spend (USD)"] = pd.to_numeric(df["Spend (USD)"], errors="coerce").fillna(0)
@@ -99,8 +107,8 @@ if selected_style != "All":
     df = df[df["Style ID"] == selected_style]
 
 # === כותרות טבלה ===
-headers = ["Ad Name", "Spend", "Revenue", "Profit", "ROAS", "DBF", "2DBF", "Current Budget", "New Budget", "New Status", "Action", "Ad Status"]
 header_cols = st.columns([2, 1, 1, 1, 1, 1, 1, 1.2, 1.2, 1, 0.8, 1])
+headers = ["Ad Name", "Spend", "Revenue", "Profit", "ROAS", "DBF", "2DBF", "Current Budget", "New Budget", "New Status", "Action", "Ad Status"]
 for col, title in zip(header_cols, headers):
     col.markdown(f"**{title}**")
 
@@ -129,8 +137,14 @@ for i, row in df.iterrows():
         unsafe_allow_html=True,
     )
 
-    cols[5].markdown(f"{row['DBF']:.0%}" if pd.notnull(row["DBF"]) else "")
-    cols[6].markdown(f"{row['2DBF']:.0%}" if pd.notnull(row["2DBF"]) else "")
+    for j, field in enumerate(["DBF", "2DBF"], start=5):
+        try:
+            val = str(row[field]).replace("%", "").strip()
+            val = float(val) / 100
+            cols[j].markdown(f"{val:.0%}")
+        except:
+            cols[j].markdown("")
+
     cols[7].markdown(f"{row['Current Budget']:.1f}")
 
     try:
@@ -152,9 +166,9 @@ for i, row in df.iterrows():
                 update_params["status"] = new_status
             if update_params:
                 adset.api_update(params=update_params)
-                st.success(f"\u2714\ufe0f Updated {row['Ad Name']}")
+                st.success(f"✔️ Updated {row['Ad Name']}")
             else:
-                st.warning(f"\u26a0\ufe0f No valid updates provided for {row['Ad Name']}")
+                st.warning(f"⚠️ No valid updates provided for {row['Ad Name']}")
         except Exception as e:
             st.error(f"❌ Failed to update {row['Ad Name']}: {e}")
 
@@ -162,7 +176,7 @@ for i, row in df.iterrows():
     if status == "ACTIVE":
         color = "#D4EDDA"
     elif status == "PAUSED":
-        color = "#5c5b5b"
+        color = "#E0E0E0"
     elif status == "DELETED":
         color = "#666666"
     else:
@@ -171,4 +185,35 @@ for i, row in df.iterrows():
     cols[11].markdown(
         f"<div style='background-color:{color}; padding:4px 8px; border-radius:4px; text-align:center; color:black'><b>{status}</b></div>",
         unsafe_allow_html=True
+    )
+
+# === סיכום לפי Style ===
+if selected_style != "All":
+    style_df = df
+    style_spend = style_df["Spend (USD)"].sum()
+    style_revenue = style_df["Revenue (USD)"].sum()
+    style_profit = style_df["Profit (USD)"].sum()
+    style_roas = style_revenue / style_spend if style_spend else 0
+
+    if style_roas < 0.7:
+        roas_color = "#B31B1B"
+    elif style_roas < 0.95:
+        roas_color = "#FDC1C5"
+    elif style_roas < 1.10:
+        roas_color = "#FBEEAC"
+    elif style_roas < 1.40:
+        roas_color = "#93C572"
+    else:
+        roas_color = "#019529"
+
+    st.markdown(
+        f"""
+        <div style="margin-top:1rem; padding:0.5rem 1rem; font-size:16px;">
+        <span style="font-weight:bold;">📘 Summary for Style ID</span>
+        <span style="background-color:#FFA500; color:black; padding:2px 6px; border-radius:4px; font-weight:bold;">{selected_style}</span>
+        — Spend: ${style_spend:.2f}, Revenue: ${style_revenue:.2f}, Profit: ${style_profit:.2f},
+        <span style="background-color:{roas_color}; color:black; padding:2px 6px; border-radius:4px;"><b>{style_roas:.0%}</b></span>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
