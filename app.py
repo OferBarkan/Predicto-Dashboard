@@ -45,18 +45,15 @@ if df.empty:
 
 # === הצמדת נתוני יום קודם (DBF) ויומיים קודם (2DBF) ===
 for offset, label in zip([1, 2], ["DBF", "2DBF"]):
-    day_str = (datetime.strptime(date_str, "%Y-%m-%d") - timedelta(days=offset)).strftime("%Y-%m-%d")
-    prev_roas = roas_df[roas_df["Date"] == day_str][[
+    prev_day = datetime.strptime(date_str, "%Y-%m-%d") - timedelta(days=offset)
+    prev_day_str = prev_day.strftime("%Y-%m-%d")
+    prev_roas = roas_df[roas_df["Date"] == prev_day_str][[
         "Ad Name", "Custom Channel ID", "Search Style ID", "ROAS"
     ]].rename(columns={"ROAS": label})
     for col in ["Ad Name", "Custom Channel ID", "Search Style ID"]:
         df[col] = df[col].astype(str).str.strip()
         prev_roas[col] = prev_roas[col].astype(str).str.strip()
-    df = df.merge(
-        prev_roas,
-        on=["Ad Name", "Custom Channel ID", "Search Style ID"],
-        how="left"
-    )
+    df = df.merge(prev_roas, on=["Ad Name", "Custom Channel ID", "Search Style ID"], how="left")
 
 # === חישובים ===
 df["Spend (USD)"] = pd.to_numeric(df["Spend (USD)"], errors="coerce").fillna(0)
@@ -99,60 +96,110 @@ if selected_style != "All":
     df = df[df["Style ID"] == selected_style]
 
 # === כותרות טבלה ===
-header_cols = st.columns([2, 1, 1, 1, 1, 1, 1, 1.2, 1.2, 1, 1])
-headers = ["Ad Name", "Spend", "Revenue", "Profit", "ROAS", "DBF", "2 DBF", "Current Budget", "New Budget", "New Status", "Ad Status"]
+header_cols = st.columns([2, 1, 1, 1, 1, 1, 1, 1.2, 1.2, 1, 0.8, 1])
+headers = ["Ad Name", "Spend", "Revenue", "Profit", "ROAS", "DBF", "2DBF", "Current Budget", "New Budget", "New Status", "Action", "Ad Status"]
 for col, title in zip(header_cols, headers):
     col.markdown(f"**{title}**")
 
 # === שורות הטבלה ===
 for i, row in df.iterrows():
-    cols = st.columns([2, 1, 1, 1, 1, 1, 1, 1.2, 1.2, 1, 1])
+    cols = st.columns([2, 1, 1, 1, 1, 1, 1, 1.2, 1.2, 1, 0.8, 1])
 
     cols[0].markdown(row["Ad Name"])
     cols[1].markdown(f"${row['Spend (USD)']:.2f}")
     cols[2].markdown(f"${row['Revenue (USD)']:.2f}")
     cols[3].markdown(f"${row['Profit (USD)']:.2f}")
 
-    def format_metric(val):
+    def format_roas(val):
         try:
-            val = float(str(val).replace("%", "").strip())
-            val /= 100  # להפוך ליחס (0.85 במקום 85%)
+            val = float(val)
+            if val < 0.7:
+                roas_color = "#B31B1B"
+            elif val < 0.95:
+                roas_color = "#FDC1C5"
+            elif val < 1.10:
+                roas_color = "#FBEEAC"
+            elif val < 1.40:
+                roas_color = "#93C572"
+            else:
+                roas_color = "#019529"
+            return f"<div style='background-color:{roas_color}; padding:4px 8px; border-radius:4px; text-align:center; color:black'><b>{val:.0%}</b></div>"
         except:
             return ""
-    
-        # הגדרת צבע לפי ערכים
-        color = "#B31B1B" if val < 0.7 else "#FDC1C5" if val < 0.95 else "#FBEEAC" if val < 1.10 else "#93C572" if val < 1.4 else "#019529"
-    
-        return f"<div style='background-color:{color}; padding:4px 8px; border-radius:4px; text-align:center; color:black'><b>{val:.0%}</b></div>"
 
-
-    cols[4].markdown(format_metric(row["ROAS"]), unsafe_allow_html=True)
-    cols[5].markdown(format_metric(row.get("DBF")), unsafe_allow_html=True)
-    cols[6].markdown(format_metric(row.get("2DBF")), unsafe_allow_html=True)
+    cols[4].markdown(format_roas(row["ROAS"]), unsafe_allow_html=True)
+    cols[5].markdown(format_roas(row.get("DBF")), unsafe_allow_html=True)
+    cols[6].markdown(format_roas(row.get("2DBF")), unsafe_allow_html=True)
 
     cols[7].markdown(f"{row['Current Budget']:.1f}")
-    default_budget = float(row.get("New Budget", 0))
+
+    try:
+        default_budget = float(row.get("New Budget", 0))
+    except:
+        default_budget = 0.0
+
     new_budget = cols[8].number_input(" ", value=default_budget, step=1.0, key=f"budget_{i}", label_visibility="collapsed")
     new_status = cols[9].selectbox(" ", options=["ACTIVE", "PAUSED"], index=0, key=f"status_{i}", label_visibility="collapsed")
 
-    if cols[9].button("Apply", key=f"apply_{i}"):
+    if cols[10].button("Apply", key=f"apply_{i}"):
         ad_id = str(row.get("Ad Set ID", "")).strip().replace("'", "")
         try:
             ad = Ad(ad_id)
-            update_params = {"status": new_status} if new_status else {}
+            update_params = {}
+            if new_status:
+                update_params["status"] = new_status
             if new_budget > 0:
                 update_params["daily_budget"] = int(new_budget * 100)
             if update_params:
                 ad.api_update(params=update_params)
                 st.success(f"✔️ Updated {row['Ad Name']}")
             else:
-                st.warning(f"⚠️ No updates provided for {row['Ad Name']}")
+                st.warning(f"⚠️ No valid updates provided for {row['Ad Name']}")
         except Exception as e:
             st.error(f"❌ Failed to update {row['Ad Name']}: {e}")
 
     status = str(row.get("Ad Status", "")).upper().strip()
-    color = "#D4EDDA" if status == "ACTIVE" else "#5c5b5b" if status == "PAUSED" else "#444"
-    cols[10].markdown(
+    if status == "ACTIVE":
+        color = "#D4EDDA"
+    elif status == "PAUSED":
+        color = "#5c5b5b"
+    elif status == "DELETED":
+        color = "#444"
+    else:
+        color = "#FFFFFF"
+
+    cols[11].markdown(
         f"<div style='background-color:{color}; padding:4px 8px; border-radius:4px; text-align:center; color:black'><b>{status}</b></div>",
         unsafe_allow_html=True
+    )
+
+# === סיכום לפי Style ===
+if selected_style != "All":
+    style_df = df
+    style_spend = style_df["Spend (USD)"].sum()
+    style_revenue = style_df["Revenue (USD)"].sum()
+    style_profit = style_df["Profit (USD)"].sum()
+    style_roas = style_revenue / style_spend if style_spend else 0
+
+    if style_roas < 0.7:
+        roas_color = "#B31B1B"
+    elif style_roas < 0.95:
+        roas_color = "#FDC1C5"
+    elif style_roas < 1.10:
+        roas_color = "#FBEEAC"
+    elif style_roas < 1.40:
+        roas_color = "#93C572"
+    else:
+        roas_color = "#019529"
+
+    st.markdown(
+        f"""
+        <div style="margin-top:1rem; padding:0.5rem 1rem; font-size:16px;">
+        <span style="font-weight:bold;">📘 Summary for Style ID</span>
+        <span style="background-color:#FFA500; color:black; padding:2px 6px; border-radius:4px; font-weight:bold;">{selected_style}</span>
+        — Spend: ${style_spend:.2f}, Revenue: ${style_revenue:.2f}, Profit: ${style_profit:.2f},
+        <span style="background-color:{roas_color}; color:black; padding:2px 6px; border-radius:4px;"><b>{style_roas:.0%}</b></span>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
