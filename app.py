@@ -146,18 +146,19 @@ for i, row in df.iterrows():
         try:
             update_budget_done = False
             update_status_done = False
-            adset_id = str(row.get("Ad Set ID", "")).strip()
-            ad_id = str(row.get("Ad ID", "")).strip()
+            adset_id = str(row.get("Ad Set ID", "")).strip().replace("'", "")
 
-            if adset_id and new_budget > 0:
-                AdSet(adset_id).api_update(params={"daily_budget": int(new_budget * 100)})
-                update_budget_done = True
+            if adset_id:
+                update_params = {}
+                if new_budget > 0:
+                    update_params["daily_budget"] = int(new_budget * 100)
+                    update_budget_done = True
+                if new_status:
+                    update_params["status"] = new_status
+                    update_status_done = True
 
-            if ad_id:
-                Ad(ad_id).api_update(params={"status": new_status})
-                update_status_done = True
-            else:
-                st.warning(f"⚠️ Missing Ad ID for {row['Ad Name']}, cannot update.")
+                if update_params:
+                    AdSet(adset_id).api_update(params=update_params)
 
             if update_budget_done or update_status_done:
                 st.success(f"✔️ Updated {row['Ad Name']}")
