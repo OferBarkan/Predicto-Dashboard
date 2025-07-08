@@ -142,31 +142,35 @@ for i, row in df.iterrows():
     new_budget = cols[8].number_input(" ", value=default_budget, step=1.0, key=f"budget_{i}", label_visibility="collapsed")
     new_status = cols[9].selectbox(" ", options=["ACTIVE", "PAUSED"], index=0, key=f"status_{i}", label_visibility="collapsed")
 
-    if cols[10].button("Apply", key=f"apply_{i}"):
-        try:
-            update_budget_done = False
-            update_status_done = False
-            adset_id = str(row.get("Ad Set ID", "")).strip().replace("'", "")
+        if cols[10].button("Apply", key=f"apply_{i}"):
+            try:
+                update_budget_done = False
+                update_status_done = False
 
-            if adset_id:
-                update_params = {}
-                if new_budget > 0:
-                    update_params["daily_budget"] = int(new_budget * 100)
+                adset_id = str(row.get("Ad Set ID", "")).strip().replace("'", "")
+                ad_id = str(row.get("Ad ID", "")).strip().replace("'", "")
+
+                # עדכון תקציב דרך Ad Set
+                if adset_id and new_budget > 0:
+                    adset = AdSet(adset_id)
+                    adset.api_update(params={"daily_budget": int(new_budget * 100)})
                     update_budget_done = True
-                if new_status:
-                    update_params["status"] = new_status
+
+                # עדכון סטטוס דרך Ad
+                if ad_id:
+                    ad = Ad(ad_id)
+                    ad.api_update(params={"status": new_status})
                     update_status_done = True
+                else:
+                    st.warning(f"⚠️ Missing Ad ID for {row['Ad Name']}, cannot update.")
 
-                if update_params:
-                    AdSet(adset_id).api_update(params=update_params)
+                if update_budget_done or update_status_done:
+                    st.success(f"✔️ Updated {row['Ad Name']}")
+                else:
+                    st.warning(f"⚠️ No valid updates for {row['Ad Name']}")
 
-            if update_budget_done or update_status_done:
-                st.success(f"✔️ Updated {row['Ad Name']}")
-            else:
-                st.warning(f"⚠️ No valid updates for {row['Ad Name']}")
-
-        except Exception as e:
-            st.error(f"❌ Failed to update {row['Ad Name']}: {e}")
+            except Exception as e:
+                st.error(f"❌ Failed to update {row['Ad Name']}: {e}")
 
     status = str(row.get("Ad Status", "")).upper().strip()
     color = "#D4EDDA" if status == "ACTIVE" else "#5c5b5b" if status == "PAUSED" else "#666666"
