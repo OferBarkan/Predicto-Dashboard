@@ -37,12 +37,10 @@ st.title("Predicto Ads Dashboard")
 yesterday = datetime.today() - timedelta(days=1)
 date = st.date_input("Select Date", yesterday)
 date_str = date.strftime("%Y-%m-%d")
-
-# === טווחים לעמודות DBF ו-2DBF ===
 prev_day_str = (date - timedelta(days=1)).strftime("%Y-%m-%d")
 prev2_day_str = (date - timedelta(days=2)).strftime("%Y-%m-%d")
 
-# === טבלת ROAS נוכחית ===
+# === סינון ROAS ליום נבחר ===
 df = roas_df[roas_df["Date"] == date_str].copy()
 if df.empty:
     st.warning("No data available for the selected date.")
@@ -65,13 +63,16 @@ for col in ["Ad Name", "Custom Channel ID", "Search Style ID"]:
 df = df.merge(roas_prev, on=["Ad Name", "Custom Channel ID", "Search Style ID"], how="left")
 df = df.merge(roas_prev2, on=["Ad Name", "Custom Channel ID", "Search Style ID"], how="left")
 
-# === חישובים ===
+# === חישובים מספריים ===
 df["Spend (USD)"] = pd.to_numeric(df["Spend (USD)"], errors="coerce").fillna(0)
 df["Revenue (USD)"] = pd.to_numeric(df["Revenue (USD)"], errors="coerce").fillna(0)
 df["ROAS"] = df["Revenue (USD)"] / df["Spend (USD)"]
 df["ROAS"] = df["ROAS"].replace([float("inf"), -float("inf")], 0).fillna(0)
 df["Profit (USD)"] = df["Revenue (USD)"] - df["Spend (USD)"]
+df["DBF"] = pd.to_numeric(df["DBF"], errors="coerce").replace([float("inf"), -float("inf")], 0).fillna(0)
+df["2DBF"] = pd.to_numeric(df["2DBF"], errors="coerce").replace([float("inf"), -float("inf")], 0).fillna(0)
 
+# === תקציב ===
 man_df["Current Budget (ILS)"] = pd.to_numeric(man_df["Current Budget (ILS)"], errors="coerce").fillna(0)
 df = df.merge(
     man_df[["Ad Name", "Ad Set ID", "Ad Status", "Current Budget (ILS)", "New Budget", "New Status"]],
@@ -82,9 +83,9 @@ df["Current Budget"] = df["Current Budget (ILS)"]
 
 # === חילוץ Style ID ===
 df["Style ID"] = df["Ad Name"].str.split("-").str[0]
-df = df.sort_values(by=["Style ID", "Ad Name"], ascending=[True, True])
+df = df.sort_values(by=["Style ID", "Ad Name"])
 
-# === פונקציה לעיצוב ROAS ו-DBF ===
+# === פונקציית עיצוב ROAS ===
 def format_roas(val):
     try:
         val = float(val)
@@ -122,14 +123,13 @@ for col, title in zip(header_cols, headers):
 # === שורות טבלה ===
 for i, row in df.iterrows():
     cols = st.columns([2, 1, 1, 1, 1, 1, 1, 1.2, 1.2, 1, 0.8, 1])
-
     cols[0].markdown(row["Ad Name"])
     cols[1].markdown(f"${row['Spend (USD)']:.2f}")
     cols[2].markdown(f"${row['Revenue (USD)']:.2f}")
     cols[3].markdown(f"${row['Profit (USD)']:.2f}")
     cols[4].markdown(format_roas(row["ROAS"]), unsafe_allow_html=True)
-    cols[5].markdown(format_roas(row.get("DBF")), unsafe_allow_html=True)
-    cols[6].markdown(format_roas(row.get("2DBF")), unsafe_allow_html=True)
+    cols[5].markdown(format_roas(row["DBF"]), unsafe_allow_html=True)
+    cols[6].markdown(format_roas(row["2DBF"]), unsafe_allow_html=True)
     cols[7].markdown(f"{row['Current Budget']:.1f}")
 
     try:
