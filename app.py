@@ -48,7 +48,7 @@ if df.empty:
     st.warning("No data available for the selected date.")
     st.stop()
 
-# === הצמדת DBF ===
+# === הצמדת DBF ו-2DBF ===
 roas_prev = roas_df[roas_df["Date"] == prev_day_str][[
     "Ad Name", "Custom Channel ID", "Search Style ID", "ROAS"
 ]].rename(columns={"ROAS": "DBF"})
@@ -87,7 +87,7 @@ df = df.sort_values(by=["Style ID", "Ad Name"], ascending=[True, True])
 # === פונקציה לעיצוב ROAS ו-DBF ===
 def format_roas(val):
     try:
-        val = float(str(val).replace("%", "").strip()) / 100
+        val = float(val)
     except:
         return ""
     color = "#B31B1B" if val < 0.7 else "#FDC1C5" if val < 0.95 else "#FBEEAC" if val < 1.10 else "#93C572" if val < 1.4 else "#019529"
@@ -127,7 +127,7 @@ for i, row in df.iterrows():
     cols[1].markdown(f"${row['Spend (USD)']:.2f}")
     cols[2].markdown(f"${row['Revenue (USD)']:.2f}")
     cols[3].markdown(f"${row['Profit (USD)']:.2f}")
-    cols[4].markdown(format_roas(row.get("ROAS")), unsafe_allow_html=True)
+    cols[4].markdown(format_roas(row["ROAS"]), unsafe_allow_html=True)
     cols[5].markdown(format_roas(row.get("DBF")), unsafe_allow_html=True)
     cols[6].markdown(format_roas(row.get("2DBF")), unsafe_allow_html=True)
     cols[7].markdown(f"{row['Current Budget']:.1f}")
