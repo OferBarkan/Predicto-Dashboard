@@ -107,32 +107,41 @@ col3.metric("Total Profit", f"${df['Profit (USD)'].sum():,.2f}")
 total_roas = df["Revenue (USD)"].sum() / df["Spend (USD)"].sum() if df["Spend (USD)"].sum() else 0
 col4.metric("Total ROAS", f"{total_roas:.0%}")
 
-# סינון לפי סגנון
+# סינון לפי סגנון# === Filters row (put this AFTER the metrics and BEFORE the table headers) ===
 st.subheader("Ad Set Control Panel")
-style_options = ["All"] + sorted(df["Style ID"].unique())
-selected_style = st.selectbox("Filter by Style ID", style_options)
+
+# ניצור 3 עמודות: שתי צרות לפילטרים ועוד מרווח גדול
+c_style, c_status, _ = st.columns([1, 1, 6])
+
+with c_style:
+    selected_style = st.selectbox(
+        "Filter by Style ID",
+        ["All"] + sorted(df["Style ID"].unique()),
+        index=0,
+        key="filter_style"
+    )
+
+with c_status:
+    # מכינים עמודת סטטוס לסינון: New Status אם יש, אחרת Current Status
+    df["Status For Filter"] = (
+        df["New Status"].astype(str).str.upper().str.strip()
+        .replace({"": None, "NAN": None})
+    )
+    df["Status For Filter"] = df["Status For Filter"].fillna(
+        df["Current Status"].astype(str).str.upper().str.strip()
+    )
+
+    status_filter = st.selectbox(
+        "Filter by Ad Set Status",
+        ["All", "ACTIVE only", "PAUSED only"],
+        index=0,
+        key="filter_status"
+    )
+
+# החלת סינונים
 if selected_style != "All":
     df = df[df["Style ID"] == selected_style]
 
-# עמודת סטטוס לצורך סינון: New Status אם קיים, אחרת Current Status
-df["Status For Filter"] = (
-    df["New Status"]
-    .astype(str).str.upper().str.strip()
-    .replace({"": None, "NAN": None})
-)
-df["Status For Filter"] = df["Status For Filter"].fillna(
-    df["Current Status"].astype(str).str.upper().str.strip()
-)
-
-# וידג'ט סינון סטטוס
-st.write("")  # רווח קטן
-status_filter = st.selectbox(
-    "Filter by Ad Set Status",
-    ["All", "ACTIVE only", "PAUSED only"],
-    index=0
-)
-
-# החלת הסינון
 if status_filter == "ACTIVE only":
     df = df[df["Status For Filter"] == "ACTIVE"]
 elif status_filter == "PAUSED only":
