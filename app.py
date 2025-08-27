@@ -6,6 +6,7 @@ from google.oauth2.service_account import Credentials
 from facebook_business.api import FacebookAdsApi
 from facebook_business.adobjects.adset import AdSet
 import json
+import math
 
 # התחברות ל-Google Sheets
 scopes = ["https://www.googleapis.com/auth/spreadsheets"]
@@ -119,7 +120,9 @@ headers = ["Ad Name", "Spend", "Revenue", "Profit", "ROAS", "DBF", "2DBF", "Curr
 for col, title in zip(header_cols, headers):
     col.markdown(f"**{title}**")
 
-# שורות
+
+batched_changes = []  # נאסוף רק שורות עם שינוי
+
 for i, row in df.iterrows():
     cols = st.columns([2, 1, 1, 1, 1, 1, 1, 1.2, 1.2, 1, 0.8, 1])
     cols[0].markdown(row["Ad Name"])
@@ -131,43 +134,81 @@ for i, row in df.iterrows():
     cols[6].markdown(format_roas(row["2DBF"]), unsafe_allow_html=True)
     cols[7].markdown(f"{row['Current Budget']:.1f}")
 
+    # קלטים
     try:
         default_budget = float(row.get("New Budget", 0)) if pd.notna(row.get("New Budget", 0)) else 0.0
     except:
         default_budget = 0.0
 
-    new_budget = cols[8].number_input(" ", value=default_budget, step=1.0, key=f"budget_{i}", label_visibility="collapsed")
-    new_status = cols[9].selectbox(" ", options=["ACTIVE", "PAUSED"], index=0, key=f"status_{i}", label_visibility="collapsed")
+    new_budget = cols[8].number_input(" ", value=default_budget, step=1.0,
+                                      key=f"budget_{i}", label_visibility="collapsed")
+    cur_status = str(row.get("Current Status", "ACTIVE")).upper().strip()
+    status_index = 0 if cur_status == "ACTIVE" else 1
+    new_status = cols[9].selectbox(" ", options=["ACTIVE", "PAUSED"], index=status_index,
+                                   key=f"status_{i}", label_visibility="collapsed")
 
+    # זיהוי שינויים
+    current_budget = float(row.get("Current Budget", 0) or 0)
+    budget_changed = (new_budget > 0) and (abs(new_budget - current_budget) >= 0.5)
+    status_changed = (new_status != cur_status)
+
+    update_params = {}
+    if budget_changed:
+        update_params["daily_budget"] = int(round(new_budget * 100))  # פייסבוק ב"אגורות"
+    if status_changed:
+        update_params["status"] = new_status
+
+    adset_id = str(row.get("Ad Set ID", "")).strip().replace("'", "")
+
+    # נכניס ל-batch רק אם יש שינוי
+    if adset_id and update_params:
+        batched_changes.append({
+            "adset_id": adset_id,
+            "ad_name": row["Ad Name"],
+            "params": update_params
+        })
+
+    # כפתור Apply לשורה
     if cols[10].button("Apply", key=f"apply_{i}"):
         try:
-            update_budget_done = False
-            update_status_done = False
-            adset_id = str(row.get("Ad Set ID", "")).strip().replace("'", "")
-
-            if adset_id:
-                update_params = {}
-                if new_budget > 0:
-                    update_params["daily_budget"] = int(new_budget * 100)
-                    update_budget_done = True
-                if new_status:
-                    update_params["status"] = new_status
-                    update_status_done = True
-
-                if update_params:
-                    AdSet(adset_id).api_update(params=update_params)
-
-            if update_budget_done or update_status_done:
+            if adset_id and update_params:
+                AdSet(adset_id).api_update(params=update_params)
                 st.success(f"✔️ Updated {row['Ad Name']}")
             else:
                 st.warning(f"⚠️ No valid updates for {row['Ad Name']}")
-
         except Exception as e:
             st.error(f"❌ Failed to update {row['Ad Name']}: {e}")
 
-    status = str(row.get("Current Status", "")).upper().strip()
+    # תצוגת סטטוס
+    status = cur_status
     color = "#D4EDDA" if status == "ACTIVE" else "#5c5b5b" if status == "PAUSED" else "#666666"
     cols[11].markdown(
         f"<div style='background-color:{color}; padding:4px 8px; border-radius:4px; text-align:center; color:black'><b>{status}</b></div>",
         unsafe_allow_html=True
     )
+
+# Apply All
+st.markdown("---")
+with st.container():
+    left, right = st.columns([3, 1])
+    with left:
+        st.caption(f"{len(batched_changes)} change(s) ready to apply")
+        with st.expander("Show pending changes"):
+            st.write([
+                {"ad_name": x["ad_name"], **x["params"]}
+                for x in batched_changes
+            ])
+    with right:
+        if st.button("Apply All Changes"):
+            successes, failures = 0, 0
+            for upd in batched_changes:
+                try:
+                    AdSet(upd["adset_id"]).api_update(params=upd["params"])
+                    successes += 1
+                except Exception as e:
+                    failures += 1
+                    st.error(f"❌ {upd['ad_name']}: {e}")
+            if successes:
+                st.success(f"✔️ Applied {successes} update(s)")
+            if failures:
+                st.warning(f"⚠️ {failures} update(s) failed")
