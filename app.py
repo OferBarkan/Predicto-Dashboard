@@ -107,11 +107,18 @@ col3.metric("Total Profit", f"${df['Profit (USD)'].sum():,.2f}")
 total_roas = df["Revenue (USD)"].sum() / df["Spend (USD)"].sum() if df["Spend (USD)"].sum() else 0
 col4.metric("Total ROAS", f"{total_roas:.0%}")
 
-# סינון לפי סגנון# === Filters row (put this AFTER the metrics and BEFORE the table headers) ===
+# --- Category from Ad Name ---
+# לוכד את המילה שבין _MT_[M/R]_ לבין ה-underscore הבא (למשל Typing / PhD / Teeth)
+df["Category"] = (
+    df["Ad Name"].astype(str)
+      .str.extract(r'_(?:MT_)?[MR]_([^_]+)_', expand=False)
+      .fillna("UNKNOWN")
+)
+# === Filters row (אחרי המטריקות ולפני טבלת הכותרות) ===
 st.subheader("Ad Set Control Panel")
 
-# ניצור 3 עמודות: שתי צרות לפילטרים ועוד מרווח גדול
-c_style, c_status, _ = st.columns([1, 1, 6])
+# שלוש עמודות צרות לפילטרים + מרווח גדול
+c_style, c_status, c_cat, _ = st.columns([1, 1, 1, 5])
 
 with c_style:
     selected_style = st.selectbox(
@@ -122,14 +129,11 @@ with c_style:
     )
 
 with c_status:
-    # מכינים עמודת סטטוס לסינון: New Status אם יש, אחרת Current Status
+    # "Status For Filter" כבר מחושב אצלך; אם לא, ודא שהוא קיים כאן
     df["Status For Filter"] = (
         df["New Status"].astype(str).str.upper().str.strip()
-        .replace({"": None, "NAN": None})
-    )
-    df["Status For Filter"] = df["Status For Filter"].fillna(
-        df["Current Status"].astype(str).str.upper().str.strip()
-    )
+          .replace({"": None, "NAN": None})
+    ).fillna(df["Current Status"].astype(str).str.upper().str.strip())
 
     status_filter = st.selectbox(
         "Filter by Ad Set Status",
@@ -138,7 +142,16 @@ with c_status:
         key="filter_status"
     )
 
-# החלת סינונים
+with c_cat:
+    category_options = ["All"] + sorted(df["Category"].unique())
+    selected_category = st.selectbox(
+        "Filter by Category",
+        category_options,
+        index=0,
+        key="filter_category"
+    )
+
+# החלת הסינונים
 if selected_style != "All":
     df = df[df["Style ID"] == selected_style]
 
@@ -146,6 +159,9 @@ if status_filter == "ACTIVE only":
     df = df[df["Status For Filter"] == "ACTIVE"]
 elif status_filter == "PAUSED only":
     df = df[df["Status For Filter"] == "PAUSED"]
+
+if selected_category != "All":
+    df = df[df["Category"] == selected_category]
 
 
 # כותרות
