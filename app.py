@@ -237,6 +237,27 @@ for i, row in df.iterrows():
         unsafe_allow_html=True
     )
 
+
+# חישוב סיכומים על התצוגה הנוכחית (אחרי כל הפילטרים)
+sum_spend  = float(df["Spend (USD)"].sum())
+sum_rev    = float(df["Revenue (USD)"].sum())
+sum_profit = float(df["Profit (USD)"].sum())
+sum_roas   = (sum_rev / sum_spend) if sum_spend else 0
+
+st.markdown("—")  # קו מפריד דק
+sum_cols = st.columns([2, 1, 1, 1, 1, 1, 1, 1.2, 1.2, 1, 0.8, 1])
+
+# עמודות סיכום מיושרות תחת הטבלה
+sum_cols[0].markdown("**Total (filtered)**")
+sum_cols[1].markdown(f"**${sum_spend:,.2f}**")
+sum_cols[2].markdown(f"**${sum_rev:,.2f}**")
+sum_cols[3].markdown(f"**${sum_profit:,.2f}**")
+sum_cols[4].markdown(format_roas(sum_roas), unsafe_allow_html=True)
+
+# להשאיר את שאר העמודות ריקות (או להוסיף טקסט משלים אם תרצה)
+for idx in [5,6,7,8,9,10,11]:
+    sum_cols[idx].markdown("")
+
 # Apply All
 st.markdown("---")
 with st.container():
