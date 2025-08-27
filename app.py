@@ -77,7 +77,7 @@ df["2DBF"] = clean_roas_column(df["2DBF"])
 # תקציב
 man_df["Current Budget (ILS)"] = pd.to_numeric(man_df["Current Budget (ILS)"], errors="coerce").fillna(0)
 df = df.merge(
-    man_df[["Ad Name", "Ad Set ID", "Ad Status", "Current Budget (ILS)", "New Budget", "New Status"]],
+    man_df[["Ad Name", "Ad Set ID", "Ad Status", "Current Budget (ILS)", "New Budget", "New Status", "Current Status"]],
     on="Ad Name",
     how="left"
 )
@@ -115,7 +115,7 @@ if selected_style != "All":
 
 # כותרות
 header_cols = st.columns([2, 1, 1, 1, 1, 1, 1, 1.2, 1.2, 1, 0.8, 1])
-headers = ["Ad Name", "Spend", "Revenue", "Profit", "ROAS", "DBF", "2DBF", "Current Budget", "New Budget", "New Status", "Action", "Ad Status"]
+headers = ["Ad Name", "Spend", "Revenue", "Profit", "ROAS", "DBF", "2DBF", "Current Budget", "New Budget", "New Status", "Action", "AdSet Status"]
 for col, title in zip(header_cols, headers):
     col.markdown(f"**{title}**")
 
@@ -165,7 +165,7 @@ for i, row in df.iterrows():
         except Exception as e:
             st.error(f"❌ Failed to update {row['Ad Name']}: {e}")
 
-    status = str(row.get("Ad Status", "")).upper().strip()
+    status = str(row.get("Current Status", "")).upper().strip()
     color = "#D4EDDA" if status == "ACTIVE" else "#5c5b5b" if status == "PAUSED" else "#666666"
     cols[11].markdown(
         f"<div style='background-color:{color}; padding:4px 8px; border-radius:4px; text-align:center; color:black'><b>{status}</b></div>",
