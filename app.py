@@ -114,6 +114,31 @@ selected_style = st.selectbox("Filter by Style ID", style_options)
 if selected_style != "All":
     df = df[df["Style ID"] == selected_style]
 
+# עמודת סטטוס לצורך סינון: New Status אם קיים, אחרת Current Status
+df["Status For Filter"] = (
+    df["New Status"]
+    .astype(str).str.upper().str.strip()
+    .replace({"": None, "NAN": None})
+)
+df["Status For Filter"] = df["Status For Filter"].fillna(
+    df["Current Status"].astype(str).str.upper().str.strip()
+)
+
+# וידג'ט סינון סטטוס
+st.write("")  # רווח קטן
+status_filter = st.selectbox(
+    "Filter by Ad Set Status",
+    ["All", "ACTIVE only", "PAUSED only"],
+    index=0
+)
+
+# החלת הסינון
+if status_filter == "ACTIVE only":
+    df = df[df["Status For Filter"] == "ACTIVE"]
+elif status_filter == "PAUSED only":
+    df = df[df["Status For Filter"] == "PAUSED"]
+
+
 # כותרות
 header_cols = st.columns([2, 1, 1, 1, 1, 1, 1, 1.2, 1.2, 1, 0.8, 1])
 headers = ["Ad Name", "Spend", "Revenue", "Profit", "ROAS", "DBF", "2DBF", "Current Budget", "New Budget", "New Status", "Action", "AdSet Status"]
