@@ -174,7 +174,7 @@ for col, title in zip(header_cols, headers):
 batched_changes = []  # נאסוף רק שורות עם שינוי
 
 for i, row in df.iterrows():
-    cols = st.columns([2, 1, 1, 1, 1, 1, 1, 1.2, 1.2, 1, 0.8, 1])
+    cols = st.columns([2.4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.8, 1])
     cols[0].markdown(row["Ad Name"])
     cols[1].markdown(f"${row['Spend (USD)']:.2f}")
     cols[2].markdown(f"${row['Revenue (USD)']:.2f}")
