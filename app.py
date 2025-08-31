@@ -165,7 +165,7 @@ if selected_category != "All":
 
 
 # כותרות
-header_cols = st.columns([2.4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.8, 1])
+header_cols = st.columns([3, 0.8, 0.8, 0.8, 1, 1, 1, 1, 1, 1, 0.8, 1])
 headers = ["Ad Name", "Spend", "Revenue", "Profit", "ROAS", "DBF", "2DBF", "Current Budget", "New Budget", "New Status", "Action", "AdSet Status"]
 for col, title in zip(header_cols, headers):
     col.markdown(f"**{title}**")
