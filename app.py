@@ -32,8 +32,8 @@ st.set_page_config(page_title="Predicto Ads Dashboard", layout="wide")
 st.title("Predicto Ads Dashboard")
 
 # בחירת תאריך
-yesterday = datetime.today() - timedelta(days=1)
-date = st.date_input("Select Date", yesterday)
+today = datetime.today()
+date = st.date_input("Select Date", today)
 date_str = date.strftime("%Y-%m-%d")
 prev_day_str = (date - timedelta(days=1)).strftime("%Y-%m-%d")
 prev2_day_str = (date - timedelta(days=2)).strftime("%Y-%m-%d")
