@@ -114,11 +114,20 @@ df["Category"] = (
       .str.extract(r'_(?:MT_)?[MR]_([^_]+)_', expand=False)
       .fillna("UNKNOWN")
 )
+
+# --- Domain from Ad Name ---
+# לוכד את הטוקן שאחרי -ch<digits>_ ועד ה-underscore הבא (למשל MT / FM)
+df["Domain"] = (
+    df["Ad Name"].astype(str)
+      .str.extract(r'-ch\d+_([^_]+)_', expand=False)
+      .fillna("UNKNOWN")
+)
+
 # === Filters row (אחרי המטריקות ולפני טבלת הכותרות) ===
 st.subheader("Ad Set Control Panel")
 
-# שלוש עמודות צרות לפילטרים + מרווח גדול
-c_style, c_status, c_cat, _ = st.columns([1, 1, 1, 5])
+# ארבע עמודות צרות לפילטרים + מרווח
+c_style, c_status, c_cat, c_dom, _ = st.columns([1, 1, 1, 1, 4])
 
 with c_style:
     selected_style = st.selectbox(
@@ -150,6 +159,15 @@ with c_cat:
         index=0,
         key="filter_category"
     )
+ with c_dom:
+    domain_options = ["All"] + sorted(df["Domain"].unique())
+    selected_domain = st.selectbox(
+        "Filter by Domain",
+        domain_options,
+        index=0,
+        key="filter_domain"
+    )
+  
 
 # החלת הסינונים
 if selected_style != "All":
@@ -163,6 +181,8 @@ elif status_filter == "PAUSED only":
 if selected_category != "All":
     df = df[df["Category"] == selected_category]
 
+if selected_domain != "All":
+    df = df[df["Domain"] == selected_domain]
 
 # כותרות
 header_cols = st.columns([3, 0.8, 0.8, 0.8, 1, 1, 1, 1, 1, 1, 0.8, 1])
