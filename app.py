@@ -99,9 +99,7 @@ else:
         st.warning("No data available for the selected range.")
         st.stop()
 
-    show_dbf = False
-    st.caption("DBF ו־2DBF אינם מוצגים במצב Date range (הם רלוונטיים רק ליום בודד).")
-
+    
 # ============== CALCULATIONS (PER MODE) ==============
 # Normalize numeric
 df["Spend (USD)"]   = pd.to_numeric(df["Spend (USD)"], errors="coerce").fillna(0)
