@@ -127,7 +127,7 @@ df["Domain"] = (
 st.subheader("Ad Set Control Panel")
 
 # ארבע עמודות צרות לפילטרים + מרווח
-c_style, c_status, c_cat, c_dom, _ = st.columns([1, 1, 1, 1, 4])
+c_style, c_status, c_cat, c_dom, _spacer = st.columns([1, 1, 1, 1, 4])
 
 with c_style:
     selected_style = st.selectbox(
@@ -159,7 +159,8 @@ with c_cat:
         index=0,
         key="filter_category"
     )
- with c_dom:
+
+with c_dom:
     domain_options = ["All"] + sorted(df["Domain"].unique())
     selected_domain = st.selectbox(
         "Filter by Domain",
@@ -167,6 +168,7 @@ with c_cat:
         index=0,
         key="filter_domain"
     )
+
   
 
 # החלת הסינונים
