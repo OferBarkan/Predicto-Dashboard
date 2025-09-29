@@ -99,6 +99,7 @@ else:
         st.warning("No data available for the selected range.")
         st.stop()
 
+    show_dbf = False
     
 # ============== CALCULATIONS (PER MODE) ==============
 # Normalize numeric
